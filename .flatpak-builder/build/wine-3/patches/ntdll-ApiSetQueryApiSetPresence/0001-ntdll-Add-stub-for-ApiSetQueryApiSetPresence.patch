@@ -1,0 +1,52 @@
+From aa4d3f847be7541b846438956ca988d3456054b2 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Michael=20M=C3=BCller?= <michael@fds-team.de>
+Date: Fri, 15 Jan 2016 13:17:31 +0100
+Subject: ntdll: Add stub for ApiSetQueryApiSetPresence.
+
+---
+ .../api-ms-win-core-apiquery-l1-1-0.spec                      |  2 +-
+ dlls/ntdll/misc.c                                             | 11 +++++++++++
+ dlls/ntdll/ntdll.spec                                         |  1 +
+ 3 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/dlls/api-ms-win-core-apiquery-l1-1-0/api-ms-win-core-apiquery-l1-1-0.spec b/dlls/api-ms-win-core-apiquery-l1-1-0/api-ms-win-core-apiquery-l1-1-0.spec
+index 6d63b5b..1d99dd7 100644
+--- a/dlls/api-ms-win-core-apiquery-l1-1-0/api-ms-win-core-apiquery-l1-1-0.spec
++++ b/dlls/api-ms-win-core-apiquery-l1-1-0/api-ms-win-core-apiquery-l1-1-0.spec
+@@ -1 +1 @@
+-@ stub ApiSetQueryApiSetPresence
++@ stdcall ApiSetQueryApiSetPresence(ptr ptr) ntdll.ApiSetQueryApiSetPresence
+diff --git a/dlls/ntdll/misc.c b/dlls/ntdll/misc.c
+index 88e8b33..85b0e32 100644
+--- a/dlls/ntdll/misc.c
++++ b/dlls/ntdll/misc.c
+@@ -484,3 +484,14 @@ void WINAPI DbgUiRemoteBreakin( void *arg )
+ {
+     FIXME("stub\n");
+ }
++
++/*********************************************************************
++ *                  ApiSetQueryApiSetPresence   (NTDLL.@)
++ */
++BOOL WINAPI ApiSetQueryApiSetPresence(const UNICODE_STRING *namespace, BOOLEAN *present)
++{
++    FIXME("(%s, %p) stub!\n", debugstr_us(namespace), present);
++
++    *present = TRUE;
++    return TRUE;
++}
+diff --git a/dlls/ntdll/ntdll.spec b/dlls/ntdll/ntdll.spec
+index c260b0d..01836a3 100644
+--- a/dlls/ntdll/ntdll.spec
++++ b/dlls/ntdll/ntdll.spec
+@@ -3,6 +3,7 @@
+ #if you change a Nt.. function DON'T FORGET to change the
+ #Zw one too.
+ 
++@ stdcall ApiSetQueryApiSetPresence(ptr ptr)
+ @ stub CsrAllocateCaptureBuffer
+ @ stub CsrAllocateCapturePointer
+ @ stub CsrAllocateMessagePointer
+-- 
+2.7.4
+

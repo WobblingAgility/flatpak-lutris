@@ -1,0 +1,2 @@
+Fixes: [39057] Support for indexed vertex blending
+Depends: wined3d-WINED3D_RS_COLORWRITEENABLE

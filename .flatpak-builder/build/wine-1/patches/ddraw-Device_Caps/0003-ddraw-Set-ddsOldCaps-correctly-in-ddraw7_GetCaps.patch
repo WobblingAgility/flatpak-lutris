@@ -1,0 +1,197 @@
+From 51a7344248cfbb0345fdf765f7a6b6af2ee4bb05 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Michael=20M=C3=BCller?= <michael@fds-team.de>
+Date: Fri, 4 Mar 2016 22:22:42 +0100
+Subject: [PATCH] ddraw: Set ddsOldCaps correctly in ddraw7_GetCaps.
+
+---
+ dlls/ddraw/ddraw.c        |  2 ++
+ dlls/ddraw/tests/ddraw1.c | 26 ++++++++++++++++++++++++++
+ dlls/ddraw/tests/ddraw2.c | 26 ++++++++++++++++++++++++++
+ dlls/ddraw/tests/ddraw4.c | 26 ++++++++++++++++++++++++++
+ dlls/ddraw/tests/ddraw7.c | 26 ++++++++++++++++++++++++++
+ 5 files changed, 106 insertions(+)
+
+diff --git a/dlls/ddraw/ddraw.c b/dlls/ddraw/ddraw.c
+index 74199b6..7179f51 100644
+--- a/dlls/ddraw/ddraw.c
++++ b/dlls/ddraw/ddraw.c
+@@ -1541,6 +1541,8 @@ static HRESULT WINAPI ddraw7_GetCaps(IDirectDraw7 *iface, DDCAPS *DriverCaps, DD
+     caps.dwCaps |= DDCAPS_ALIGNSTRIDE;
+     caps.dwAlignStrideAlign = DDRAW_STRIDE_ALIGNMENT;
+ 
++    caps.ddsOldCaps.dwCaps = caps.ddsCaps.dwCaps;
++
+     IDirect3D7_EnumZBufferFormats(&ddraw->IDirect3D7_iface, &IID_IDirect3DHALDevice, enum_zbuffer, &caps);
+ 
+     if(DriverCaps)
+diff --git a/dlls/ddraw/tests/ddraw1.c b/dlls/ddraw/tests/ddraw1.c
+index 626b07b..a7e5bcd 100644
+--- a/dlls/ddraw/tests/ddraw1.c
++++ b/dlls/ddraw/tests/ddraw1.c
+@@ -11247,6 +11247,31 @@ static void test_enum_surfaces(void)
+     IDirectDraw_Release(ddraw);
+ }
+ 
++static void test_caps(void)
++{
++    IDirectDraw *ddraw;
++    DDCAPS caps, caps2;
++    HRESULT hr;
++
++    ddraw = create_ddraw();
++    ok(!!ddraw, "Failed to create a ddraw object.\n");
++
++    caps.dwSize = sizeof(caps);
++    caps2.dwSize = sizeof(caps2);
++    hr = IDirectDraw_GetCaps(ddraw, &caps, &caps2);
++    ok(SUCCEEDED(hr), "Failed to query for caps, hr %#x.\n", hr);
++
++    ok(caps.ddsOldCaps.dwCaps == caps.ddsCaps.dwCaps,
++       "Expected hal ddsOldCaps and ddsCaps to be identical (%x vs %x).\n",
++       caps.ddsOldCaps.dwCaps, caps.ddsCaps.dwCaps);
++
++    ok(caps2.ddsOldCaps.dwCaps == caps2.ddsCaps.dwCaps,
++       "Expected hel ddsOldCaps and ddsCaps to be identical (%x vs %x).\n",
++       caps2.ddsOldCaps.dwCaps, caps2.ddsCaps.dwCaps);
++
++    IDirectDraw_Release(ddraw);
++}
++
+ START_TEST(ddraw1)
+ {
+     DDDEVICEIDENTIFIER identifier;
+@@ -11348,4 +11373,5 @@ START_TEST(ddraw1)
+     test_depth_readback();
+     test_clear();
+     test_enum_surfaces();
++    test_caps();
+ }
+diff --git a/dlls/ddraw/tests/ddraw2.c b/dlls/ddraw/tests/ddraw2.c
+index 1ab1f9c..272f364 100644
+--- a/dlls/ddraw/tests/ddraw2.c
++++ b/dlls/ddraw/tests/ddraw2.c
+@@ -12646,6 +12646,31 @@ static void test_enum_surfaces(void)
+     IDirectDraw2_Release(ddraw);
+ }
+ 
++static void test_caps(void)
++{
++    IDirectDraw2 *ddraw;
++    DDCAPS caps, caps2;
++    HRESULT hr;
++
++    ddraw = create_ddraw();
++    ok(!!ddraw, "Failed to create a ddraw object.\n");
++
++    caps.dwSize = sizeof(caps);
++    caps2.dwSize = sizeof(caps2);
++    hr = IDirectDraw2_GetCaps(ddraw, &caps, &caps2);
++    ok(SUCCEEDED(hr), "Failed to query for caps, hr %#x.\n", hr);
++
++    ok(caps.ddsOldCaps.dwCaps == caps.ddsCaps.dwCaps,
++       "Expected hal ddsOldCaps and ddsCaps to be identical (%x vs %x).\n",
++       caps.ddsOldCaps.dwCaps, caps.ddsCaps.dwCaps);
++
++    ok(caps2.ddsOldCaps.dwCaps == caps2.ddsCaps.dwCaps,
++       "Expected hel ddsOldCaps and ddsCaps to be identical (%x vs %x).\n",
++       caps2.ddsOldCaps.dwCaps, caps2.ddsCaps.dwCaps);
++
++    IDirectDraw2_Release(ddraw);
++}
++
+ START_TEST(ddraw2)
+ {
+     DDDEVICEIDENTIFIER identifier;
+@@ -12756,4 +12781,5 @@ START_TEST(ddraw2)
+     test_depth_readback();
+     test_clear();
+     test_enum_surfaces();
++    test_caps();
+ }
+diff --git a/dlls/ddraw/tests/ddraw4.c b/dlls/ddraw/tests/ddraw4.c
+index 02b10b5..f114bc4 100644
+--- a/dlls/ddraw/tests/ddraw4.c
++++ b/dlls/ddraw/tests/ddraw4.c
+@@ -14751,6 +14751,31 @@ static void test_enum_surfaces(void)
+     IDirectDraw4_Release(ddraw);
+ }
+ 
++static void test_caps(void)
++{
++    IDirectDraw4 *ddraw;
++    DDCAPS caps, caps2;
++    HRESULT hr;
++
++    ddraw = create_ddraw();
++    ok(!!ddraw, "Failed to create a ddraw object.\n");
++
++    caps.dwSize = sizeof(caps);
++    caps2.dwSize = sizeof(caps2);
++    hr = IDirectDraw4_GetCaps(ddraw, &caps, &caps2);
++    ok(SUCCEEDED(hr), "Failed to query for caps, hr %#x.\n", hr);
++
++    ok(caps.ddsOldCaps.dwCaps == caps.ddsCaps.dwCaps,
++       "Expected hal ddsOldCaps and ddsCaps to be identical (%x vs %x).\n",
++       caps.ddsOldCaps.dwCaps, caps.ddsCaps.dwCaps);
++
++    ok(caps2.ddsOldCaps.dwCaps == caps2.ddsCaps.dwCaps,
++       "Expected hel ddsOldCaps and ddsCaps to be identical (%x vs %x).\n",
++       caps2.ddsOldCaps.dwCaps, caps2.ddsCaps.dwCaps);
++
++    IDirectDraw4_Release(ddraw);
++}
++
+ START_TEST(ddraw4)
+ {
+     DDDEVICEIDENTIFIER identifier;
+@@ -14875,4 +14900,5 @@ START_TEST(ddraw4)
+     test_depth_readback();
+     test_clear();
+     test_enum_surfaces();
++    test_caps();
+ }
+diff --git a/dlls/ddraw/tests/ddraw7.c b/dlls/ddraw/tests/ddraw7.c
+index 767507f..44fdf2e 100644
+--- a/dlls/ddraw/tests/ddraw7.c
++++ b/dlls/ddraw/tests/ddraw7.c
+@@ -14113,6 +14113,31 @@ static void test_enum_surfaces(void)
+     IDirectDraw7_Release(ddraw);
+ }
+ 
++static void test_caps(void)
++{
++    IDirectDraw7 *ddraw;
++    DDCAPS caps, caps2;
++    HRESULT hr;
++
++    ddraw = create_ddraw();
++    ok(!!ddraw, "Failed to create a ddraw object.\n");
++
++    caps.dwSize = sizeof(caps);
++    caps2.dwSize = sizeof(caps2);
++    hr = IDirectDraw7_GetCaps(ddraw, &caps, &caps2);
++    ok(SUCCEEDED(hr), "Failed to query for caps, hr %#x.\n", hr);
++
++    ok(caps.ddsOldCaps.dwCaps == caps.ddsCaps.dwCaps,
++       "Expected hal ddsOldCaps and ddsCaps to be identical (%x vs %x).\n",
++       caps.ddsOldCaps.dwCaps, caps.ddsCaps.dwCaps);
++
++    ok(caps2.ddsOldCaps.dwCaps == caps2.ddsCaps.dwCaps,
++       "Expected hel ddsOldCaps and ddsCaps to be identical (%x vs %x).\n",
++       caps2.ddsOldCaps.dwCaps, caps2.ddsCaps.dwCaps);
++
++    IDirectDraw7_Release(ddraw);
++}
++
+ START_TEST(ddraw7)
+ {
+     DDDEVICEIDENTIFIER2 identifier;
+@@ -14247,4 +14272,5 @@ START_TEST(ddraw7)
+     test_depth_readback();
+     test_clear();
+     test_enum_surfaces();
++    test_caps();
+ }
+-- 
+1.9.1
+

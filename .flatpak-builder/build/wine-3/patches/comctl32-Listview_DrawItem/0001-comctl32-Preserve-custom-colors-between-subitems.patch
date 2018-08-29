@@ -1,0 +1,112 @@
+From ddc5f6fd9dde7a5cdde0be59d4a9db9e086400a9 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Michael=20M=C3=BCller?= <michael@fds-team.de>
+Date: Sat, 12 Jul 2014 23:58:19 +0200
+Subject: comctl32: Preserve custom colors between subitems. (v2)
+
+---
+ dlls/comctl32/listview.c       | 20 +++++++++-----------
+ dlls/comctl32/tests/listview.c | 23 ++++++++++++++++++++---
+ 2 files changed, 29 insertions(+), 14 deletions(-)
+
+diff --git a/dlls/comctl32/listview.c b/dlls/comctl32/listview.c
+index 56e2563..a35f5f2 100644
+--- a/dlls/comctl32/listview.c
++++ b/dlls/comctl32/listview.c
+@@ -1072,7 +1072,7 @@ static void prepaint_setup (const LISTVIEW_INFO *infoPtr, HDC hdc, NMLVCUSTOMDRA
+     COLORREF backcolor, textcolor;
+ 
+     /* apparently, for selected items, we have to override the returned values */
+-    if (!SubItem)
++    if (!SubItem || (infoPtr->dwLvExStyle & LVS_EX_FULLROWSELECT))
+     {
+         if (lpnmlvcd->nmcd.uItemState & CDIS_SELECTED)
+         {
+@@ -4784,6 +4784,7 @@ static BOOL LISTVIEW_DrawItem(LISTVIEW_INFO *infoPtr, HDC hdc, INT nItem, ITERAT
+         while (iterator_next(subitems))
+         {
+             DWORD subitemstage = CDRF_DODEFAULT;
++            NMLVCUSTOMDRAW temp_nmlvcd;
+ 
+             /* We need to query for each subitem, item's data (subitem == 0) is already here at this point */
+             if (subitems->nItem)
+@@ -4810,19 +4811,16 @@ static BOOL LISTVIEW_DrawItem(LISTVIEW_INFO *infoPtr, HDC hdc, INT nItem, ITERAT
+ 
+             if (cdsubitemmode & CDRF_NOTIFYSUBITEMDRAW)
+                 subitemstage = notify_customdraw(infoPtr, CDDS_SUBITEM | CDDS_ITEMPREPAINT, &nmlvcd);
+-            else
+-            {
+-                nmlvcd.clrTextBk = infoPtr->clrTextBk;
+-                nmlvcd.clrText   = infoPtr->clrText;
+-            }
+ 
+-            if (subitems->nItem == 0 || (cdmode & CDRF_NOTIFYITEMDRAW))
+-                prepaint_setup(infoPtr, hdc, &nmlvcd, FALSE);
+-            else if (!(infoPtr->dwLvExStyle & LVS_EX_FULLROWSELECT))
+-                prepaint_setup(infoPtr, hdc, &nmlvcd, TRUE);
++            /*
++             * A selection should neither affect the colors in the post paint notification nor
++             * affect the colors of the next drawn subitem. Copy the structure to prevent this.
++             */
++            temp_nmlvcd = nmlvcd;
++            prepaint_setup(infoPtr, hdc, &temp_nmlvcd, subitems->nItem);
+ 
+             if (!(subitemstage & CDRF_SKIPDEFAULT))
+-                LISTVIEW_DrawItemPart(infoPtr, &lvItem, &nmlvcd, &pos);
++                LISTVIEW_DrawItemPart(infoPtr, &lvItem, &temp_nmlvcd, &pos);
+ 
+             if (subitemstage & CDRF_NOTIFYPOSTPAINT)
+                 subitemstage = notify_customdraw(infoPtr, CDDS_SUBITEM | CDDS_ITEMPOSTPAINT, &nmlvcd);
+diff --git a/dlls/comctl32/tests/listview.c b/dlls/comctl32/tests/listview.c
+index ec87e3b..eb4db0e 100644
+--- a/dlls/comctl32/tests/listview.c
++++ b/dlls/comctl32/tests/listview.c
+@@ -1830,12 +1830,16 @@ static LRESULT WINAPI cd_wndproc(HWND hwnd, UINT message, WPARAM wParam, LPARAM
+                 clr = GetBkColor(nmlvcd->nmcd.hdc);
+                 ok(nmlvcd->clrTextBk == CLR_DEFAULT, "got 0x%x\n", nmlvcd->clrTextBk);
+                 ok(nmlvcd->clrText == RGB(0, 255, 0), "got 0x%x\n", nmlvcd->clrText);
+-                todo_wine_if(nmlvcd->iSubItem)
+-                    ok(clr == c0ffee, "clr=%.8x\n", clr);
++                if (!(GetWindowLongW(nmhdr->hwndFrom, GWL_STYLE) & LVS_SHOWSELALWAYS))
++                {
++                    todo_wine_if(nmlvcd->iSubItem)
++                        ok(clr == c0ffee, "clr=%.8x\n", clr);
++                }
+                 return CDRF_NOTIFYPOSTPAINT;
+             case CDDS_ITEMPOSTPAINT | CDDS_SUBITEM:
+                 clr = GetBkColor(nmlvcd->nmcd.hdc);
+-                todo_wine ok(clr == c0ffee, "clr=%.8x\n", clr);
++                if (!(GetWindowLongW(nmhdr->hwndFrom, GWL_STYLE) & LVS_SHOWSELALWAYS))
++                    todo_wine ok(clr == c0ffee, "clr=%.8x\n", clr);
+                 ok(nmlvcd->clrTextBk == CLR_DEFAULT, "got 0x%x\n", nmlvcd->clrTextBk);
+                 ok(nmlvcd->clrText == RGB(0, 255, 0), "got 0x%x\n", nmlvcd->clrText);
+                 return CDRF_DODEFAULT;
+@@ -1851,6 +1855,7 @@ static void test_customdraw(void)
+ {
+     HWND hwnd;
+     WNDPROC oldwndproc;
++    LVITEMA item;
+ 
+     hwnd = create_listview_control(LVS_REPORT);
+ 
+@@ -1870,6 +1875,18 @@ static void test_customdraw(void)
+     UpdateWindow(hwnd);
+     ok_sequence(sequences, PARENT_CD_SEQ_INDEX, parent_report_cd_seq, "parent customdraw, LVS_REPORT", FALSE);
+ 
++    /* check colors when item is selected */
++    SetWindowLongW(hwnd, GWL_STYLE, GetWindowLongW(hwnd, GWL_STYLE) | LVS_SHOWSELALWAYS);
++    item.mask = LVIF_STATE;
++    item.stateMask = LVIS_SELECTED;
++    item.state = LVIS_SELECTED;
++    SendMessageA(hwnd, LVM_SETITEMSTATE, 0, (LPARAM)&item);
++
++    flush_sequences(sequences, NUM_MSG_SEQUENCES);
++    InvalidateRect(hwnd, NULL, TRUE);
++    UpdateWindow(hwnd);
++    ok_sequence(sequences, PARENT_CD_SEQ_INDEX, parent_report_cd_seq, "parent customdraw, LVS_REPORT, selection", FALSE);
++
+     DestroyWindow(hwnd);
+ 
+     hwnd = create_listview_control(LVS_LIST);
+-- 
+2.9.0
+

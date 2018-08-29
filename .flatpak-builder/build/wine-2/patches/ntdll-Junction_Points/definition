@@ -1,0 +1,2 @@
+Fixes: [12401] Support for Junction Points
+Depends: ntdll-NtQueryEaFile

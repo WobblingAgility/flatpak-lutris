@@ -1,0 +1,5 @@
+[Runtime]
+name=net.lutris.Lutris.Debug
+
+[ExtensionOf]
+ref=app/net.lutris.Lutris/x86_64/master

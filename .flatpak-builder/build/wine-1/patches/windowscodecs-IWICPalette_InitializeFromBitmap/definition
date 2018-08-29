@@ -1,0 +1,2 @@
+Fixes: [39890] Implement IWICPalette::InitializeFromBitmap
+Fixes: Implement gdiplus.GdipInitializePalette

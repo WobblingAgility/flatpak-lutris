@@ -1,0 +1,212 @@
+From 552ce43d924c0959cd8f093d677e9ce968f251a0 Mon Sep 17 00:00:00 2001
+From: Dmitry Timoshkov <dmitry@baikal.ru>
+Date: Wed, 10 Feb 2016 15:09:29 +0800
+Subject: winex11.drv: Add support for _NET_ACTIVE_WINDOW. (v2)
+
+And use it as a backend in user32.SetActiveWindow().
+
+For bug #2155.
+---
+ dlls/user32/driver.c              |  7 ++++++
+ dlls/user32/focus.c               |  2 ++
+ dlls/user32/user_private.h        |  1 +
+ dlls/winex11.drv/event.c          |  5 ++++
+ dlls/winex11.drv/window.c         | 48 +++++++++++++++++++++++++++++++++++++++
+ dlls/winex11.drv/winex11.drv.spec |  1 +
+ dlls/winex11.drv/x11drv.h         |  2 ++
+ dlls/winex11.drv/x11drv_main.c    |  1 +
+ 8 files changed, 67 insertions(+)
+
+diff --git a/dlls/user32/driver.c b/dlls/user32/driver.c
+index d4d9486..a9ef3ad 100644
+--- a/dlls/user32/driver.c
++++ b/dlls/user32/driver.c
+@@ -134,6 +134,7 @@ static const USER_DRIVER *load_driver(void)
+         GET_USER_FUNC(MsgWaitForMultipleObjectsEx);
+         GET_USER_FUNC(ReleaseDC);
+         GET_USER_FUNC(ScrollDC);
++        GET_USER_FUNC(SetActiveWindow);
+         GET_USER_FUNC(SetCapture);
+         GET_USER_FUNC(SetFocus);
+         GET_USER_FUNC(SetLayeredWindowAttributes);
+@@ -408,6 +409,10 @@ static BOOL CDECL nulldrv_ScrollDC( HDC hdc, INT dx, INT dy, HRGN update )
+                    hdc, rect.left - dx, rect.top - dy, SRCCOPY );
+ }
+ 
++static void CDECL nulldrv_SetActiveWindow( HWND hwnd )
++{
++}
++
+ static void CDECL nulldrv_SetCapture( HWND hwnd, UINT flags )
+ {
+ }
+@@ -526,6 +531,7 @@ static USER_DRIVER null_driver =
+     nulldrv_MsgWaitForMultipleObjectsEx,
+     nulldrv_ReleaseDC,
+     nulldrv_ScrollDC,
++    nulldrv_SetActiveWindow,
+     nulldrv_SetCapture,
+     nulldrv_SetFocus,
+     nulldrv_SetLayeredWindowAttributes,
+@@ -754,6 +760,7 @@ static USER_DRIVER lazy_load_driver =
+     nulldrv_MsgWaitForMultipleObjectsEx,
+     nulldrv_ReleaseDC,
+     nulldrv_ScrollDC,
++    nulldrv_SetActiveWindow,
+     nulldrv_SetCapture,
+     nulldrv_SetFocus,
+     loaderdrv_SetLayeredWindowAttributes,
+diff --git a/dlls/user32/focus.c b/dlls/user32/focus.c
+index 3fe0431..dbde668 100644
+--- a/dlls/user32/focus.c
++++ b/dlls/user32/focus.c
+@@ -158,6 +158,8 @@ static BOOL set_active_window( HWND hwnd, HWND *prev, BOOL mouse, BOOL focus )
+             PostMessageW( GetDesktopWindow(), WM_PARENTNOTIFY, WM_NCACTIVATE, (LPARAM)hwnd );
+     }
+ 
++    USER_Driver->pSetActiveWindow( hwnd );
++
+     /* now change focus if necessary */
+     if (focus)
+     {
+diff --git a/dlls/user32/user_private.h b/dlls/user32/user_private.h
+index e36457d..161085d 100644
+--- a/dlls/user32/user_private.h
++++ b/dlls/user32/user_private.h
+@@ -95,6 +95,7 @@ typedef struct tagUSER_DRIVER {
+     DWORD  (CDECL *pMsgWaitForMultipleObjectsEx)(DWORD,const HANDLE*,DWORD,DWORD,DWORD);
+     void   (CDECL *pReleaseDC)(HWND,HDC);
+     BOOL   (CDECL *pScrollDC)(HDC,INT,INT,HRGN);
++    void   (CDECL *pSetActiveWindow)(HWND);
+     void   (CDECL *pSetCapture)(HWND,UINT);
+     void   (CDECL *pSetFocus)(HWND);
+     void   (CDECL *pSetLayeredWindowAttributes)(HWND,COLORREF,BYTE,DWORD);
+diff --git a/dlls/winex11.drv/event.c b/dlls/winex11.drv/event.c
+index 5ac4bd7..bf2cbb0 100644
+--- a/dlls/winex11.drv/event.c
++++ b/dlls/winex11.drv/event.c
+@@ -597,6 +597,9 @@ static void set_focus( Display *display, HWND hwnd, Time time )
+     Window win;
+     GUITHREADINFO threadinfo;
+ 
++    /* prevent recursion */
++    x11drv_thread_data()->active_window = hwnd;
++
+     TRACE( "setting foreground window to %p\n", hwnd );
+     SetForegroundWindow( hwnd );
+ 
+@@ -818,6 +821,8 @@ static BOOL X11DRV_FocusIn( HWND hwnd, XEvent *xev )
+ 
+     if (!focus_win)
+     {
++        x11drv_thread_data()->active_window = 0;
++
+         /* Abey : 6-Oct-99. Check again if the focus out window is the
+            Foreground window, because in most cases the messages sent
+            above must have already changed the foreground window, in which
+diff --git a/dlls/winex11.drv/window.c b/dlls/winex11.drv/window.c
+index 3bcc268..a7062a2 100644
+--- a/dlls/winex11.drv/window.c
++++ b/dlls/winex11.drv/window.c
+@@ -2117,6 +2117,54 @@ BOOL CDECL X11DRV_ScrollDC( HDC hdc, INT dx, INT dy, HRGN update )
+ 
+ 
+ /***********************************************************************
++ *		SetActiveWindow  (X11DRV.@)
++ */
++void CDECL X11DRV_SetActiveWindow( HWND hwnd )
++{
++    struct x11drv_thread_data *thread_data = x11drv_init_thread_data();
++    struct x11drv_win_data *data;
++
++    TRACE("%p\n", hwnd);
++
++    if (thread_data->active_window == hwnd)
++    {
++        TRACE("ignoring activation for already active window %p\n", hwnd);
++        return;
++    }
++
++    if (!(data = get_win_data( hwnd ))) return;
++
++    if (data->mapped && data->managed)
++    {
++        XEvent xev;
++        struct x11drv_win_data *active = get_win_data( thread_data->active_window );
++        DWORD timestamp = GetMessageTime() - EVENT_x11_time_to_win32_time( 0 );
++
++        TRACE("setting _NET_ACTIVE_WINDOW to %p/%lx, current active %p/%lx\n",
++            data->hwnd, data->whole_window, active ? active->hwnd : NULL, active ? active->whole_window : 0 );
++
++        xev.xclient.type = ClientMessage;
++        xev.xclient.window = data->whole_window;
++        xev.xclient.message_type = x11drv_atom(_NET_ACTIVE_WINDOW);
++        xev.xclient.serial = 0;
++        xev.xclient.display = data->display;
++        xev.xclient.send_event = True;
++        xev.xclient.format = 32;
++
++        xev.xclient.data.l[0] = 1; /* source: application */
++        xev.xclient.data.l[1] = timestamp;
++        xev.xclient.data.l[2] = active ? active->whole_window : 0;
++        xev.xclient.data.l[3] = 0;
++        xev.xclient.data.l[4] = 0;
++        XSendEvent( data->display, root_window, False, SubstructureRedirectMask | SubstructureNotifyMask, &xev );
++
++        if (active) release_win_data( active );
++    }
++
++    release_win_data( data );
++}
++
++/***********************************************************************
+  *		SetCapture  (X11DRV.@)
+  */
+ void CDECL X11DRV_SetCapture( HWND hwnd, UINT flags )
+diff --git a/dlls/winex11.drv/winex11.drv.spec b/dlls/winex11.drv/winex11.drv.spec
+index 82d25e5..145ba64 100644
+--- a/dlls/winex11.drv/winex11.drv.spec
++++ b/dlls/winex11.drv/winex11.drv.spec
+@@ -31,6 +31,7 @@
+ @ cdecl MsgWaitForMultipleObjectsEx(long ptr long long long) X11DRV_MsgWaitForMultipleObjectsEx
+ @ cdecl ReleaseDC(long long) X11DRV_ReleaseDC
+ @ cdecl ScrollDC(long long long long) X11DRV_ScrollDC
++@ cdecl SetActiveWindow(long) X11DRV_SetActiveWindow
+ @ cdecl SetCapture(long long) X11DRV_SetCapture
+ @ cdecl SetFocus(long) X11DRV_SetFocus
+ @ cdecl SetLayeredWindowAttributes(long long long long) X11DRV_SetLayeredWindowAttributes
+diff --git a/dlls/winex11.drv/x11drv.h b/dlls/winex11.drv/x11drv.h
+index f5585b1..19cc852 100644
+--- a/dlls/winex11.drv/x11drv.h
++++ b/dlls/winex11.drv/x11drv.h
+@@ -315,6 +315,7 @@ struct x11drv_thread_data
+     Display *display;
+     XEvent  *current_event;        /* event currently being processed */
+     HWND     grab_hwnd;            /* window that currently grabs the mouse */
++    HWND     active_window;        /* active window */
+     HWND     last_focus;           /* last window that had focus */
+     XIM      xim;                  /* input method */
+     HWND     last_xic_hwnd;        /* last xic window */
+@@ -416,6 +417,7 @@ enum x11drv_atoms
+     XATOM_DndSelection,
+     XATOM__ICC_PROFILE,
+     XATOM__MOTIF_WM_HINTS,
++    XATOM__NET_ACTIVE_WINDOW,
+     XATOM__NET_STARTUP_INFO_BEGIN,
+     XATOM__NET_STARTUP_INFO,
+     XATOM__NET_SUPPORTED,
+diff --git a/dlls/winex11.drv/x11drv_main.c b/dlls/winex11.drv/x11drv_main.c
+index c6421a3..2ed5ea9 100644
+--- a/dlls/winex11.drv/x11drv_main.c
++++ b/dlls/winex11.drv/x11drv_main.c
+@@ -126,6 +126,7 @@ static const char * const atom_names[NB_XATOMS - FIRST_XATOM] =
+     "DndSelection",
+     "_ICC_PROFILE",
+     "_MOTIF_WM_HINTS",
++    "_NET_ACTIVE_WINDOW",
+     "_NET_STARTUP_INFO_BEGIN",
+     "_NET_STARTUP_INFO",
+     "_NET_SUPPORTED",
+-- 
+2.9.0
+

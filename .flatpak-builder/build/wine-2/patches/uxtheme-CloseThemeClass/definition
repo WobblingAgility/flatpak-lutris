@@ -1,0 +1,1 @@
+Fixes: [41729] Protect CloseThemeData() from invalid input

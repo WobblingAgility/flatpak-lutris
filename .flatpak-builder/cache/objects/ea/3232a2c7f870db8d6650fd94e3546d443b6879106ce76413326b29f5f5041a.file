@@ -1,0 +1,12 @@
+[Desktop Entry]
+Version=1.0
+Name=Lutris
+Comment=Open gaming platform
+Comment[pl]=Otwarta platforma dla graczy
+Categories=Game;
+Exec=lutris %U
+Icon=net.lutris.Lutris
+Terminal=false
+Type=Application
+MimeType=x-scheme-handler/lutris;
+X-Flatpak-RenamedFrom=lutris.desktop;

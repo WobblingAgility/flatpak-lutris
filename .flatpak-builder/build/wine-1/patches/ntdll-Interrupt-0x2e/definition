@@ -1,0 +1,1 @@
+Fixes: [42647] Implement stub handler for int 0x2e

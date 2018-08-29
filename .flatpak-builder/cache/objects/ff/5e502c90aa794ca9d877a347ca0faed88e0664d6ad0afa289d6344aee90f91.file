@@ -1,0 +1,4 @@
+[Application]
+name=net.lutris.Lutris
+runtime=org.gnome.Platform/i386/3.28
+sdk=org.gnome.Sdk/i386/3.28

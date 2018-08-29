@@ -1,0 +1,324 @@
+The Wine development release 3.8 is now available.
+
+What's new in this release (see below for details):
+  - Infrastructure for writing kernel driver tests.
+  - Support for showing file properties in the Shell browser.
+  - MP3 decoder as a DirectX Media Object.
+  - More support for the Task Scheduler.
+  - Support for COM aggregation in UrlMon.
+  - Various bug fixes.
+
+The source is available from the following locations:
+
+  https://dl.winehq.org/wine/source/3.x/wine-3.8.tar.xz
+  http://mirrors.ibiblio.org/wine/source/3.x/wine-3.8.tar.xz
+
+Binary packages for various distributions will be available from:
+
+  https://www.winehq.org/download
+
+You will find documentation on https://www.winehq.org/documentation
+
+You can also get the current source directly from the git
+repository. Check https://www.winehq.org/git for details.
+
+Wine is available thanks to the work of many people. See the file
+AUTHORS in the distribution for the complete list.
+
+----------------------------------------------------------------
+
+Bugs fixed in 3.8 (total 32):
+
+  10365  Multiple applications fail to install due to custom action dll instance data not reset (dll pinned during execution of multiple custom actions)(Nero 7, ABBYY FineReader 9, Lingvo X5/X6, TradeStation 10.0)
+  16144  Acrobat Reader X, XI and Photoshop CS any version crash on complex documents due to missing atmlib.dll (Adobe Type Manager, Windows NT OpenType/Type 1 API Library)
+  21404  winedbg does not support fixed host:port parameter
+  21530  Wrong notification format used by tooltip attached to Toolbar
+  22048  Installation of '.NET documentation' from Windows SDK for Windows 7 and .NET Framework 3.5 SP1 installer fails (VS90-KB953196-x86.exe hotfix fails with incorrect TARGETDIR)
+  23757  Free Pascal 2.4.0 segfaults (Cygwin 1.5.18 TLS implementation overwrites Wine/glibc/pthread data near Tib->StackBase)
+  30449  GDIPaint does not paint (works with native gdiplus)
+  30713  Microsoft Visual C++ 64-bit redistributables get incorrectly installed into SysWOW64 (system directory for 32-bit files) when run under 64-bit Wine
+  31741  python.org 64-bit Python 2.7.3 installer: selecting preferred installation folder does nothing (32-bit bootstrapper process needs custom action script/dll executed in 64-bit server process)
+  37856  Multiple installers fail due to 32-bit custom actions erroneously executed in 64-bit MSI process (packages needs to be processed as 32-bit by default, with relegation to 32-bit server)
+  38073  GdipDrawPath graphics object has no HDC (graphical glitches in Adobe Premiere Pro CS3)
+  43607  Akiba's Trip Undead & Undressed requires MFStartup to return S_OK.
+  44118  Steam Big Picture requires d3d11 Multiple Viewports
+  44119  Steam Big Picture requires d3d11 Multiple scissor rects
+  44334  'start /W "" notepad' does not wait as on native.
+  44399  WickrMe 4.19.7: Crashes due to stub combase.RoGetActivationFactory
+  44553  Kerberos support added in Wine 3.1 is breaking build on some old Linux distributions
+  44866  Autodesk Fusion 360 fails to run: propertystore_SetValue and propertystore_Commit need fake success
+  44895  League Of Legends: Unable to log in if behind OpenWRT based router
+  44914  Wrong cursor for IDC_SIZEWE
+  44953  Adobe Premiere Elements 14 (trial) crashes inside winmm.dll
+  44959  Adobe Premiere Elements 14 fails to install: ERROR: DF039: Cannot set folder icon. Error 2 File not found.(Seq 4)
+  44976  ConEmu-Maximus5 Windows console emulator causes crash of builtin 'wineconsole.exe' (division by zero)
+  45033  Dragon Naturally Speaking 15 installer fails with 'CheckWMIService' returning error 1602 (needs dummy Windows Management Instrumentation service 'winmgmt')
+  45073  MSI custom action server process crashes in remote_GetActionInfo while unmarshalling data (affects many MSI installers)
+  45078  UFOHD2 crashes inside devenum
+  45081  DsEnumerateDomainTrusts stubbed without A/W suffix
+  45118  Microsoft Windows PowerShell 6.x reports 'PowerShell Gallery is currently unavailable.' (WinHttpSetOption returns incorrect lasterror on unsupported options)
+  45134  Multiple MSI-based installers crash in custom actions with unhandled RPC exception 0x6b5 'Unknown Interface' (World Racing 2 demo, ABBYY Lingvo x6)
+  45136  Wine does not behave as Windows when using TBM_SETPAGESIZE call before TBM_SETRANGE
+  45143  Neoncron 2 Launcher crashes embedding IE browser process when clicking bottom menu items
+  45157  Toolbar code crashes on certain button tooltips
+
+----------------------------------------------------------------
+
+Changes since 3.7:
+
+Akihiro Sagawa (2):
+      winmm: Fix default time division value in MIDI stream.
+      winmm: Avoid casting unsigned char to plain char.
+
+Alex Henrie (8):
+      user32/tests: Drop nonsensical broadcast tests that fail on Windows 10.
+      include: Add strtof and strtold.
+      ucrtbase: Hook up _Exit.
+      include: Add atoll.
+      include: Add strtoll, strtoll_l, strtoull, and strtoull_l.
+      include: Add llabs.
+      include: Add lldiv and lldiv_t.
+      msvcrt: Omit pointer coding functions from SOs for newer MSVC versions.
+
+Alexandre Julliard (8):
+      winegcc: Add support for building native subsystem libraries.
+      user32/tests: Avoid calling a potentially missing function.
+      user32/tests: Reorganize the DPI tests.
+      user32: Set the thread DPI awareness to the window's when calling a window procedure.
+      Revert "user32: SetWindowPos() should check the final window position in screen coords before adding SWP_NOMOVE."
+      user32: Avoid repeatedly fetching the window rectangles in SetWindowPos.
+      user32: Take into account the offset between old and new parent in SetParent().
+      ws2_32: Add fallback data for getprotobyname/number.
+
+Alistair Leslie-Hughes (5):
+      netapi32: Add DsEnumerateDomainTrustsA/W stubs.
+      mfplat: Return S_OK from MFStartup stub.
+      maintainers: Remove previous wine-staging maintainers.
+      combase/tests: Add RoGetActivationFactory tests.
+      include: Move AllocateAndGet* functions to public header.
+
+André Hentschel (1):
+      ntoskrnl.exe/tests: Don't test functions directly when reporting GetLastError().
+
+Aric Stewart (1):
+      winebus: Properly identify SDL joysticks index when hot-plugged.
+
+Aurimas Fišeras (1):
+      po: Update Lithuanian translation.
+
+Daniel Lehman (13):
+      include: Add _countof macro.
+      include: Add wcstof.
+      advapi32/tests: Don't call function in assert().
+      msvcrt/tests: Add setlocale test.
+      msvcr100/tests: Add setlocale test.
+      msvcr110/tests: Add setlocale tests.
+      advapi32/tests: Add tests for REG_NOTIFY_THREAD_AGNOSTIC.
+      include: Add thread pool declarations for currently implemented functions.
+      advapi32/tests: Add RegNotifyChangeKeyValue tests.
+      server: Notify parents of registry value changes.
+      crypt32: Clear dirty flag after flushing changes to registry.
+      shell32: Convert / to \ when parsing file list.
+      advapi32/tests: Free subkey.
+
+Dmitry Timoshkov (17):
+      schedsvc: Also watch for job file modifications.
+      schedsvc: Explicitly terminate the received name in the notification buffer.
+      mstask: Export the AT Service RPC API.
+      schedsvc: Reimplement FILE_ACTION_MODIFIED by remove_job()/add_job() sequence as MSDN suggests.
+      mstask: Implement ITaskScheduler::Delete().
+      schedsvc: Pass full task file name to remove_job()/add_job().
+      mstask: Don't touch instance count field of the job file in the client.
+      mstask: Initialize more task fields from the job file on load.
+      mstask: Implement ITask::GetFlags().
+      mstask: Return SCHED_S_TASK_RUNNING from ITask::GetStatus() if there are running task instances.
+      mstask: Write more correct flags and status to the job file.
+      mstask: Try opening a file more times when saving a job file.
+      mstask: Implement ITask::Run().
+      mstask: Implement ITask::Terminate().
+      mstask/tests: Add some tests for ITask::Run().
+      schedsvc: Read more task fields from the job file.
+      mstask: Add stdcall to cdecl thunks for AT Service RPC API.
+
+Fabian Maurer (1):
+      wineconsole: When loading settings for an application, respect a 0 in FontSize.
+
+François Gouget (3):
+      user32/tests: Add a trailing '\n' to an ok() call.
+      secur32: Make alloc_lsa_connection() static.
+      msi/tests: Add trailing '\n's to ok() calls.
+
+Guillaume Gill (1):
+      shell32: Fake success in propertystore_[SetValue|Commit].
+
+Hans Leidekker (7):
+      server: Dump token details.
+      server: Store the token owner separately.
+      configure: Require a more recent version of libkrb5.
+      programs: Add a stub winmgmt service.
+      winhttp: Fix invalid option error returned from WinHttpSetOption.
+      hnetcfg/tests: Ignore case when comparing filenames.
+      ws2_32: Enable IP_DONTFRAGMENT by default for SOCK_STREAM sockets.
+
+Henri Verbeet (2):
+      wined3d: Make the "args" parameter to glsl_blitter_generate_program() const.
+      wined3d: Add core context P8 blit support to the GLSL blitter.
+
+Hua Meng (1):
+      msvcp: Add a stub of _Concurrent_vector_base_v4.
+
+Hugh McMaster (2):
+      regedit: Stop exporting REG_SZ data at the first NUL character.
+      reg: Stop exporting REG_SZ data at the first NUL character.
+
+Huw D. M. Davies (1):
+      user32: Pass the modifiable string buffer directly to TEXT_NextLineW().
+
+Jacek Caban (29):
+      jscript: Use new PROPF_CONFIGURABLE flag instead of PROPF_DONTDELETE.
+      jscript: Use new PROPF_WRITABLE flag instead of PROPF_CONST.
+      jscript: Rename PROPF_ENUM to PROPF_ENUMERABLE.
+      wininet: Allow INTERNET_OPTION_SETTINGS_CHANGED on all handle types.
+      wininet: Add stub for INTERNET_OPTION_REFRESH.
+      urlmon: Store aggregated protocol handler IUnknown in BindProtocol.
+      urlmon: Don't store IWinInetHttpInfo reference in BindProtocol.
+      urlmon: Don't store IWinInetInfo reference in BindProtocol.
+      urlmon: Release protocol handler in BindProtocol::Terminate.
+      urlmon: Added support for COM aggregation of file protocol handler.
+      urlmon: Added support for COM aggregation to http protocol handler.
+      urlmon: Added support for COM aggregation to ftp protocol handler.
+      urlmon: Added support for COM aggregation to mk protocol handler.
+      urlmon: Use protocol handler's IUnknown to query other interfaces in BindProtocol.
+      urlmon: Use COM aggregation for urlmon protocols in BindProtocol::StartEx.
+      urlmon/tests: Added more protocol COM aggregation tests.
+      urlmon: Support querying interfaces from aggregated handlers in BindProtocol.
+      urlmon: Use COM aggregation for IWinInetInfo and IWinInetHttpInfo interfaces in BindProtocol.
+      urlmon: Query for IWinInet[Http]Info on BindProtocol instead of protocol handler directly.
+      jscript: Added Object.getOwnPropertyDescriptor implementation.
+      jscript: Use jsdisp_get_own_property in Object.hasOwnProperty implementation.
+      jscript: Use jsdisp_get_own_property in Object.propertyIsEnumerable implementation.
+      jscript: Make String.length non-writable.
+      jscript: Make Function instance object properties non-writable.
+      jscript: Make RegExp object properties non-writable.
+      jscript: Add Object.defineProperty implementation.
+      jscript: Use jsdisp_define_property instead of jsdisp_propput_const.
+      jscript: Make global constants non-writable in ES5 mode.
+      jscript: Use jsdisp_define_property instead of jsdisp_propput_dontenum for global properties.
+
+Józef Kucia (1):
+      winebus: Print SDL error message when SDL cannot be initialized.
+
+Louis Lenders (4):
+      shell32: Handle writing an iconresource entry in SHGetSetFolderCustomSettings.
+      winmm: Return error in waveInMessage if either dwParam1 or dwParam2 is null.
+      atmlib: Add stub dll.
+      atmlib: Add stub for ATMFinish.
+
+Martin Storsjo (2):
+      arm64: Use __builtin_ms_va_list and __attribute__((ms_abi)) on arm64.
+      configure: Detect MinGW-w64 ARM64 toolchains.
+
+Matteo Bruni (3):
+      wined3d: Use staging resources to blit from CPU resources in the fixed-function blitter.
+      wined3d: Implement P8 blits in the GLSL blitter.
+      wined3d: Rename gen_planar_yuv_read() to gen_packed_yuv_read().
+
+Michael Müller (12):
+      combase: Implement RoGetActivationFactory.
+      combase: Implement RoActivateInstance.
+      combase: Add stub for RoGetApartmentIdentifier.
+      combase: Add stub for RoRegisterForApartmentShutdown.
+      combase: Add stub for RoGetServerActivatableClasses.
+      combase: Add stub for RoRegisterActivationFactories.
+      combase: Add stub for CleanupTlsOleState.
+      shell32: Add general tab in file property dialog.
+      ntdll: Add stub for RtlQueryPackageIdentity.
+      include: Add IApplicationActivationManager interface declaration.
+      ext-ms-win-uxtheme-themes-l1-1-0: Add dll.
+      feclient: Add stub dll.
+
+Nikolay Sivov (17):
+      comctl32/tooltip: Compare to special callback pointer value directly.
+      comctl32/toolbar: Fix tooltip notification forwarding.
+      d3d11: Add ID3D11Device1 stub.
+      d3d11: Add ID3D11DeviceContext1 stub.
+      wined3d: Add new functions to set and get maximum frame latency for the device.
+      comctl32/trackbar: Don't update page size if it was explicitly set.
+      comctl32/trackbar: Remove separate field indicating focused state.
+      comctl32/trackbar: Fix reseting to default page size.
+      user32: Avoid touching last error on successful path of GetClassInfo().
+      comctl32/toolbar: Handle resource strings returned for tooltip text.
+      po: Update Russian translation.
+      user32/menu: Return locked menu data when looking for menu items.
+      gdiplus: Fix the number of transformed points for squared caps.
+      gdiplus: Convert actually used points for anchored round caps.
+      gdiplus: Fix the number of transformed points for round caps.
+      gdiplus: Draw using actual point data for custom caps.
+      dsound: Use correct pointer type.
+
+Owen Rudge (2):
+      include: Add WSD_PROBE structure to wsdtypes.h.
+      wsdapi/tests: Add initial test for receiving probe messages.
+
+Pablo Martin (2):
+      d3d11: Handle D3D11_FEATURE_ARCHITECTURE_INFO in d3d11_device_CheckFeatureSupport().
+      d3d11/tests: Add tests for D3D11_FEATURE_ARCHITECTURE_INFO in CheckFeatureSupport().
+
+Piotr Caban (3):
+      msvcr120: Add Concurrency::details::platform::GetCurrentThreadId export.
+      kernel32: Fix CreateProcess behavior when batch script command contains '"' characters.
+      msvcr110: Try SNAME when matching locale.
+
+Qian Hong (1):
+      server: Map EXDEV to STATUS_NOT_SAME_DEVICE.
+
+Sebastian Lackner (1):
+      ntoskrnl.exe/tests: Add test driver.
+
+Vincent Povirk (2):
+      gdi32: Check for truncated EMF files.
+      gdi32: Check that emf records are within the file.
+
+Zebediah Figura (34):
+      devenum: Check for null pointer in IMoniker_BindToObject().
+      services: Fall back to the current architecture if GetBinaryType fails.
+      makedep: Also pass EXTRADLLFLAGS to the cross-compiled test DLL.
+      msi: Execute the custom action server with the correct bitness.
+      msi: Don't load a custom action DLL in the main process.
+      ntoskrnl.exe/tests: Also handle ERROR_INVALID_IMAGE_HASH.
+      ntoskrnl.exe/tests: Add a test for IoGetCurrentProcess().
+      ntoskrnl.exe/tests: Add a simple test for MmMapLockedPagesSpecifyCache().
+      msi: Set the correct values for ProgramFiles64Folder and CommonFiles64Folder.
+      ntoskrnl/tests: Use WINAPIV calling convention for variadic functions.
+      winedbg: Add support for starting on a user-supplied port.
+      strmbase: Check that the output pin supports the given media type before connecting.
+      strmbase: Implement QueryAccept() on top of CheckMediaType() for output pins too.
+      strmbase: Consistently trace the BasePin object.
+      msi: Check return value of GetBinaryType().
+      msi: Disable WoW redirection when installing a 64-bit package.
+      jscript: Avoid crash when calling stringify() with no arguments.
+      rpcrt4/tests: Add a basic test for RPC_IF_AUTOLISTEN.
+      rpcrt4: RpcServerUnregisterIf() with NULL ifspec shouldn't unregister auto-listen interfaces.
+      dmoguids: Add library.
+      msdmo: Link to dmoguids.
+      msdmo: Return a valid enumerator even if the category doesn't exist.
+      msdmo: Fix pointer checking in IEnumDMO_Next().
+      msdmo: Make formatting consistent with the rest of the file.
+      msdmo: Only return valid GUIDs in IEnumDMO_Next().
+      msi: Avoid leaking custom action data.
+      include: Add wmcodecdsp.idl and CMP3DecMediaObject.
+      wmcodecdspuuid: Add static library.
+      mp3dmod: Add stub MP3 Decoder DMO.
+      mp3dmod: Link to libmpg123.
+      mp3dmod: Return S_OK from SetInputType().
+      mp3dmod: Implement SetOutputType().
+      mp3dmod: Implement ProcessInput().
+      mp3dmod: Implement ProcessOutput().
+
+Zhiyi Zhang (2):
+      user32: Use the heap_*() functions in text.c where possible.
+      user32: Use common cleanup code in DrawTextExW().
+
+--
+Alexandre Julliard
+julliard@winehq.org

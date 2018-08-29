@@ -1,0 +1,19 @@
+Metadata-Version: 1.1
+Name: lutris
+Version: 0.4.19
+Summary: Install and play any video game on Linux
+Home-page: https://lutris.net
+Author: Mathieu Comandon
+Author-email: strider@strycore.com
+License: GPL-3
+Description: Lutris is a gaming platform for GNU/Linux. It's goal is
+            to make gaming on Linux as easy as possible by taking care of installing
+            and setting up the game for the user. The only thing you have to do is play
+            the game. It aims to support every game that is playable on Linux.
+Platform: UNKNOWN
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: End Users/Desktop
+Classifier: License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)
+Classifier: Programming Language :: Python
+Classifier: Operating System :: Linux
+Classifier: Topic :: Games/Entertainment

@@ -1,0 +1,10 @@
+Fixes: Implement stubs for ntoskrnl.Ex{Acquire,Release}FastMutexUnsafe
+Fixes: Implement stubs for ntoskrnl.ObReferenceObjectByPointer and ntoskrnl.ObDereferenceObject
+Fixes: Fix wrong defition of ntoskrnl.IoReleaseCancelSpinLock function.
+Fixes: Add stub for ntoskrnl.Mm{Map,Unmap}LockedPages
+Fixes: Implement ntoskrnl.KeInitializeMutex
+Fixes: Add stub for ntoskrnl.IoGetDeviceAttachmentBaseRef
+Fixes: Implement ntoskrnl.ExInterlockedPopEntrySList
+Fixes: Implement ntoskrnl.NtBuildNumber
+Fixes: Implement ntoskrnl.ExInitializeNPagedLookasideList
+Depends: Compiler_Warnings

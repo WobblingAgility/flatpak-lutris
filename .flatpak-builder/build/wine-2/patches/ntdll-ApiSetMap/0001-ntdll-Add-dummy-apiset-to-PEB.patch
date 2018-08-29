@@ -1,0 +1,108 @@
+From f41ca623297693e58b3d286245fa01b4c9d9f5b1 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Michael=20M=C3=BCller?= <michael@fds-team.de>
+Date: Mon, 3 Apr 2017 01:06:26 +0200
+Subject: [PATCH] ntdll: Add dummy apiset to PEB.
+
+---
+ dlls/ntdll/thread.c |  2 ++
+ include/Makefile.in |  1 +
+ include/apiset.h    | 33 +++++++++++++++++++++++++++++++++
+ include/winternl.h  |  3 ++-
+ 4 files changed, 38 insertions(+), 1 deletion(-)
+ create mode 100644 include/apiset.h
+
+diff --git a/dlls/ntdll/thread.c b/dlls/ntdll/thread.c
+index 34e12ad..b1d04ab 100644
+--- a/dlls/ntdll/thread.c
++++ b/dlls/ntdll/thread.c
+@@ -75,6 +75,7 @@ static WCHAR current_dir[MAX_NT_PATH_LENGTH];
+ static RTL_BITMAP tls_bitmap;
+ static RTL_BITMAP tls_expansion_bitmap;
+ static RTL_BITMAP fls_bitmap;
++static API_SET_NAMESPACE_ARRAY apiset_map;
+ static int nb_threads = 1;
+ 
+ static RTL_CRITICAL_SECTION peb_lock;
+@@ -396,6 +397,7 @@ HANDLE thread_init(void)
+ 
+     peb->FastPebLock        = &peb_lock;
+     peb->ProcessParameters  = &params;
++    peb->ApiSetMap          = &apiset_map;
+     peb->TlsBitmap          = &tls_bitmap;
+     peb->TlsExpansionBitmap = &tls_expansion_bitmap;
+     peb->FlsBitmap          = &fls_bitmap;
+diff --git a/include/Makefile.in b/include/Makefile.in
+index ac0ff21..be384d5 100644
+--- a/include/Makefile.in
++++ b/include/Makefile.in
+@@ -14,6 +14,7 @@ SOURCES = \
+ 	amstream.idl \
+ 	amvideo.idl \
+ 	appcompatapi.h \
++	apiset.h \
+ 	appmgmt.h \
+ 	appmodel.h \
+ 	asptlb.idl \
+diff --git a/include/apiset.h b/include/apiset.h
+new file mode 100644
+index 0000000..5f91171
+--- /dev/null
++++ b/include/apiset.h
+@@ -0,0 +1,33 @@
++/*
++ * Copyright (C) 2017 Michael Müller
++ *
++ * This library is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * This library is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with this library; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA
++ */
++
++#include <windef.h>
++
++typedef struct _API_SET_NAMESPACE_ENTRY
++{
++    ULONG NameOffset;
++    ULONG NameLength;
++    ULONG DataOffset;
++} API_SET_NAMESPACE_ENTRY, *PAPI_SET_NAMESPACE_ENTRY;
++
++typedef struct _API_SET_NAMESPACE_ARRAY
++{
++    ULONG Version;
++    ULONG Count;
++    API_SET_NAMESPACE_ENTRY Array[1];
++} API_SET_NAMESPACE_ARRAY, *PAPI_SET_NAMESPACE_ARRAY;
+diff --git a/include/winternl.h b/include/winternl.h
+index 9dd95c3..0701ed4 100644
+--- a/include/winternl.h
++++ b/include/winternl.h
+@@ -23,6 +23,7 @@
+ 
+ #include <ntdef.h>
+ #include <windef.h>
++#include <apiset.h>
+ 
+ #ifdef __cplusplus
+ extern "C" {
+@@ -279,7 +280,7 @@ typedef struct _PEB
+     ULONG                        EnvironmentUpdateCount;            /* 028/050 */
+     PVOID                        KernelCallbackTable;               /* 02c/058 */
+     ULONG                        Reserved[2];                       /* 030/060 */
+-    PVOID /*PPEB_FREE_BLOCK*/    FreeList;                          /* 038/068 */
++    PAPI_SET_NAMESPACE_ARRAY     ApiSetMap;                         /* 038/068 */
+     ULONG                        TlsExpansionCounter;               /* 03c/070 */
+     PRTL_BITMAP                  TlsBitmap;                         /* 040/078 */
+     ULONG                        TlsBitmapBits[2];                  /* 044/080 */
+-- 
+1.9.1
+

@@ -1,0 +1,37 @@
+From c4ea0bd8f07199b3a7a68229cb206ed9a568d8e1 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Michael=20M=C3=BCller?= <michael@fds-team.de>
+Date: Wed, 14 Jan 2015 22:50:35 +0100
+Subject: nvapi: Add stub for NvAPI_D3D9_RegisterResource.
+
+---
+ dlls/nvapi/nvapi.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/dlls/nvapi/nvapi.c b/dlls/nvapi/nvapi.c
+index 6bf960f79a8..942fe780c88 100644
+--- a/dlls/nvapi/nvapi.c
++++ b/dlls/nvapi/nvapi.c
+@@ -570,6 +570,12 @@ static NvAPI_Status CDECL NvAPI_D3D_GetObjectHandleForResource(IUnknown *pDevice
+     return NVAPI_ERROR;
+ }
+ 
++static NvAPI_Status CDECL NvAPI_D3D9_RegisterResource(IDirect3DResource9* pResource)
++{
++    FIXME("(%p): stub\n", pResource);
++    return NVAPI_ERROR;
++}
++
+ void* CDECL nvapi_QueryInterface(unsigned int offset)
+ {
+     static const struct
+@@ -611,6 +617,7 @@ void* CDECL nvapi_QueryInterface(unsigned int offset)
+         {0x4b708b54, NvAPI_D3D_GetCurrentSLIState},
+         {0xee1370cf, NvAPI_GetLogicalGPUFromDisplay},
+         {0xfceac864, NvAPI_D3D_GetObjectHandleForResource},
++        {0xa064bdfc, NvAPI_D3D9_RegisterResource},
+     };
+     unsigned int i;
+     TRACE("(%x)\n", offset);
+-- 
+2.13.1
+

@@ -1,0 +1,3 @@
+Fixes: [44650] Fix holes in ELF mappings
+Depends: ntdll-User_Shared_Data
+Depends: ntdll-x86_64_ExceptionInformation

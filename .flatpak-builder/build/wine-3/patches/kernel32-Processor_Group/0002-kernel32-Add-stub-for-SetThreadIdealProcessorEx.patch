@@ -1,0 +1,62 @@
+From ac7b880c08822aac4e5241753dc919b7ab0e796e Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Michael=20M=C3=BCller?= <michael@fds-team.de>
+Date: Sat, 4 Feb 2017 16:31:59 +0100
+Subject: kernel32: Add stub for SetThreadIdealProcessorEx.
+
+---
+ dlls/kernel32/thread.c | 32 ++++++++++++++++++++++----------
+ 1 file changed, 22 insertions(+), 10 deletions(-)
+
+diff --git a/dlls/kernel32/thread.c b/dlls/kernel32/thread.c
+index ac2c3687789..499fbe24d09 100644
+--- a/dlls/kernel32/thread.c
++++ b/dlls/kernel32/thread.c
+@@ -450,6 +450,28 @@ DWORD_PTR WINAPI SetThreadAffinityMask( HANDLE hThread, DWORD_PTR dwThreadAffini
+     return tbi.AffinityMask;
+ }
+ 
++/**********************************************************************
++ *           SetThreadIdealProcessorEx   (KERNEL32.@)
++ */
++BOOL WINAPI SetThreadIdealProcessorEx(HANDLE thread, PROCESSOR_NUMBER *processor, PROCESSOR_NUMBER *previous)
++{
++    FIXME("(%p, %p, %p): stub\n", thread, processor, previous);
++
++    if (!processor || processor->Group > 0 || processor->Number > MAXIMUM_PROCESSORS)
++    {
++        SetLastError(ERROR_INVALID_PARAMETER);
++        return FALSE;
++    }
++
++    if (previous)
++    {
++        previous->Group = 0;
++        previous->Number = 0;
++        previous->Reserved = 0;
++    }
++
++    return TRUE;
++}
+ 
+ /**********************************************************************
+  * SetThreadIdealProcessor [KERNEL32.@]  Sets preferred processor for thread.
+@@ -472,16 +494,6 @@ DWORD WINAPI SetThreadIdealProcessor(
+ }
+ 
+ /***********************************************************************
+- *              SetThreadIdealProcessorEx (KERNEL32.@)
+- */
+-BOOL WINAPI SetThreadIdealProcessorEx( HANDLE thread, PROCESSOR_NUMBER *ideal, PROCESSOR_NUMBER *previous )
+-{
+-    FIXME("(%p %p %p): stub\n", thread, ideal, previous);
+-    SetLastError(ERROR_CALL_NOT_IMPLEMENTED);
+-    return FALSE;
+-}
+-
+-/***********************************************************************
+  *           GetThreadSelectorEntry   (KERNEL32.@)
+  */
+ BOOL WINAPI GetThreadSelectorEntry( HANDLE hthread, DWORD sel, LPLDT_ENTRY ldtent )
+-- 
+2.12.2
+

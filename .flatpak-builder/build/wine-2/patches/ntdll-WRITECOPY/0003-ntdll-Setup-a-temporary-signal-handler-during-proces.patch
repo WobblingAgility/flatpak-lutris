@@ -1,0 +1,182 @@
+From 85d2001db2e2eccd57c8ec7d90fc851887110dc3 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Michael=20M=C3=BCller?= <michael@fds-team.de>
+Date: Sat, 4 Oct 2014 02:53:22 +0200
+Subject: [PATCH] ntdll: Setup a temporary signal handler during process
+ startup to handle page faults. (v2)
+
+---
+ dlls/ntdll/ntdll_misc.h     |  1 +
+ dlls/ntdll/signal_arm.c     |  6 +++++
+ dlls/ntdll/signal_arm64.c   |  6 +++++
+ dlls/ntdll/signal_i386.c    | 53 +++++++++++++++++++++++++++++++++++++++++++++
+ dlls/ntdll/signal_powerpc.c |  6 +++++
+ dlls/ntdll/signal_x86_64.c  |  6 +++++
+ dlls/ntdll/thread.c         |  1 +
+ 7 files changed, 79 insertions(+)
+
+diff --git a/dlls/ntdll/ntdll_misc.h b/dlls/ntdll/ntdll_misc.h
+index 693b212..0c21e8c 100644
+--- a/dlls/ntdll/ntdll_misc.h
++++ b/dlls/ntdll/ntdll_misc.h
+@@ -67,6 +67,7 @@ extern NTSTATUS signal_alloc_thread( TEB **teb ) DECLSPEC_HIDDEN;
+ extern void signal_free_thread( TEB *teb ) DECLSPEC_HIDDEN;
+ extern void signal_init_thread( TEB *teb ) DECLSPEC_HIDDEN;
+ extern void signal_init_process(void) DECLSPEC_HIDDEN;
++extern void signal_init_early(void) DECLSPEC_HIDDEN;
+ extern void signal_start_thread( LPTHREAD_START_ROUTINE entry, void *arg, BOOL suspend ) DECLSPEC_HIDDEN;
+ extern void signal_start_process( LPTHREAD_START_ROUTINE entry, BOOL suspend ) DECLSPEC_HIDDEN;
+ extern void DECLSPEC_NORETURN signal_exit_thread( int status ) DECLSPEC_HIDDEN;
+diff --git a/dlls/ntdll/signal_arm.c b/dlls/ntdll/signal_arm.c
+index 7fe698c..2f55bd3 100644
+--- a/dlls/ntdll/signal_arm.c
++++ b/dlls/ntdll/signal_arm.c
+@@ -1024,6 +1024,12 @@ void signal_init_process(void)
+     exit(1);
+ }
+ 
++/**********************************************************************
++ *    signal_init_early
++ */
++void signal_init_early(void)
++{
++}
+ 
+ /**********************************************************************
+  *              RtlAddFunctionTable   (NTDLL.@)
+diff --git a/dlls/ntdll/signal_arm64.c b/dlls/ntdll/signal_arm64.c
+index c461e88..156ff5d 100644
+--- a/dlls/ntdll/signal_arm64.c
++++ b/dlls/ntdll/signal_arm64.c
+@@ -883,6 +883,12 @@ void signal_init_thread( TEB *teb )
+     pthread_setspecific( teb_key, teb );
+ }
+ 
++/**********************************************************************
++ *    signal_init_early
++ */
++void signal_init_early(void)
++{
++}
+ 
+ /**********************************************************************
+  *		signal_init_process
+diff --git a/dlls/ntdll/signal_i386.c b/dlls/ntdll/signal_i386.c
+index 71eff66..c223757 100644
+--- a/dlls/ntdll/signal_i386.c
++++ b/dlls/ntdll/signal_i386.c
+@@ -1956,6 +1956,31 @@ static void WINAPI raise_generic_exception( EXCEPTION_RECORD *rec, CONTEXT *cont
+ 
+ 
+ /**********************************************************************
++ *    segv_handler_early
++ *
++ * Handler for SIGSEGV and related errors. Used only during the initialization
++ * of the process to handle virtual faults.
++ */
++static void segv_handler_early( int signal, siginfo_t *siginfo, void *sigcontext )
++{
++    WORD fs, gs;
++    ucontext_t *context = sigcontext;
++    init_handler( sigcontext, &fs, &gs );
++
++    switch(get_trap_code(context))
++    {
++    case TRAP_x86_PAGEFLT:  /* Page fault */
++        if (!virtual_handle_fault( siginfo->si_addr, (get_error_code(context) >> 1) & 0x09, TRUE ))
++            return;
++        /* fall-through */
++    default:
++        WINE_ERR( "Got unexpected trap %d during process initialization\n", get_trap_code(context) );
++        abort_thread(1);
++        break;
++    }
++}
++
++/**********************************************************************
+  *		segv_handler
+  *
+  * Handler for SIGSEGV and related errors.
+@@ -2369,6 +2394,34 @@ void signal_init_process(void)
+     exit(1);
+ }
+ 
++/**********************************************************************
++ *    signal_init_early
++ */
++void signal_init_early(void)
++{
++    struct sigaction sig_act;
++
++    sig_act.sa_mask = server_block_set;
++    sig_act.sa_flags = SA_SIGINFO | SA_RESTART;
++#ifdef SA_ONSTACK
++    sig_act.sa_flags |= SA_ONSTACK;
++#endif
++#ifdef __ANDROID__
++    sig_act.sa_flags |= SA_RESTORER;
++    sig_act.sa_restorer = rt_sigreturn;
++#endif
++    sig_act.sa_sigaction = segv_handler_early;
++    if (sigaction( SIGSEGV, &sig_act, NULL ) == -1) goto error;
++    if (sigaction( SIGILL, &sig_act, NULL ) == -1) goto error;
++#ifdef SIGBUS
++    if (sigaction( SIGBUS, &sig_act, NULL ) == -1) goto error;
++#endif
++    return;
++
++error:
++    perror("sigaction");
++    exit(1);
++}
+ 
+ /*******************************************************************
+  *		RtlUnwind (NTDLL.@)
+diff --git a/dlls/ntdll/signal_powerpc.c b/dlls/ntdll/signal_powerpc.c
+index cb5089b..635a07f 100644
+--- a/dlls/ntdll/signal_powerpc.c
++++ b/dlls/ntdll/signal_powerpc.c
+@@ -1045,6 +1045,12 @@ void signal_init_thread( TEB *teb )
+     pthread_setspecific( teb_key, teb );
+ }
+ 
++/**********************************************************************
++ *    signal_init_early
++ */
++void signal_init_early(void)
++{
++}
+ 
+ /**********************************************************************
+  *		signal_init_process
+diff --git a/dlls/ntdll/signal_x86_64.c b/dlls/ntdll/signal_x86_64.c
+index 3b16426..7730b25 100644
+--- a/dlls/ntdll/signal_x86_64.c
++++ b/dlls/ntdll/signal_x86_64.c
+@@ -3228,6 +3228,12 @@ void signal_init_process(void)
+     exit(1);
+ }
+ 
++/**********************************************************************
++ *    signal_init_early
++ */
++void signal_init_early(void)
++{
++}
+ 
+ /**********************************************************************
+  *              RtlAddFunctionTable   (NTDLL.@)
+diff --git a/dlls/ntdll/thread.c b/dlls/ntdll/thread.c
+index 1bf44c8..241e7f3 100644
+--- a/dlls/ntdll/thread.c
++++ b/dlls/ntdll/thread.c
+@@ -446,6 +446,7 @@ HANDLE thread_init(void)
+     static struct debug_info debug_info;  /* debug info for initial thread */
+ 
+     virtual_init();
++    signal_init_early();
+ 
+     /* reserve space for shared user data */
+ 
+-- 
+2.7.4
+

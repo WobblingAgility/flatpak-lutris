@@ -1,0 +1,103 @@
+From 92eada413d3bc9e95d1d00478daf9a06fd3e587e Mon Sep 17 00:00:00 2001
+From: "Erich E. Hoover" <erich.e.hoover@gmail.com>
+Date: Wed, 20 Aug 2014 11:26:48 -0600
+Subject: [PATCH] ntdll: Perform the Unix-style hidden file check within the
+ unified file info grabbing routine.
+
+---
+ dlls/ntdll/directory.c  | 15 +++++----------
+ dlls/ntdll/file.c       | 10 ++++------
+ dlls/ntdll/ntdll_misc.h |  2 +-
+ 3 files changed, 10 insertions(+), 17 deletions(-)
+
+diff --git a/dlls/ntdll/directory.c b/dlls/ntdll/directory.c
+index 4655a634..511a345 100644
+--- a/dlls/ntdll/directory.c
++++ b/dlls/ntdll/directory.c
+@@ -1267,17 +1267,17 @@ static DWORD WINAPI init_options( RTL_RUN_ONCE *once, void *param, void **contex
+  *
+  * Check if the specified file should be hidden based on its name and the show dot files option.
+  */
+-BOOL DIR_is_hidden_file( const UNICODE_STRING *name )
++BOOL DIR_is_hidden_file( const char *name )
+ {
+-    WCHAR *p, *end;
++    char *p, *end;
+ 
+     RtlRunOnceExecuteOnce( &init_once, init_options, NULL, NULL );
+ 
+     if (show_dot_files) return FALSE;
+ 
+-    end = p = name->Buffer + name->Length/sizeof(WCHAR);
+-    while (p > name->Buffer && IS_SEPARATOR(p[-1])) p--;
+-    while (p > name->Buffer && !IS_SEPARATOR(p[-1])) p--;
++    end = p = (char *)name + strlen(name);
++    while (p > name && IS_SEPARATOR(p[-1])) p--;
++    while (p > name && !IS_SEPARATOR(p[-1])) p--;
+     if (p == end || *p != '.') return FALSE;
+     /* make sure it isn't '.' or '..' */
+     if (p + 1 == end) return FALSE;
+@@ -1526,11 +1526,6 @@ static NTSTATUS get_dir_data_entry( struct dir_data *dir_data, void *info_ptr, I
+     if (class != FileNamesInformation)
+     {
+         if (st.st_dev != dir_data->id.dev) st.st_ino = 0;  /* ignore inode if on a different device */
+-
+-        if (!show_dot_files && names->long_name[0] == '.' && names->long_name[1] &&
+-            (names->long_name[1] != '.' || names->long_name[2]))
+-            attributes |= FILE_ATTRIBUTE_HIDDEN;
+-
+         fill_file_info( &st, attributes, info, class );
+     }
+ 
+diff --git a/dlls/ntdll/file.c b/dlls/ntdll/file.c
+index 3a96d3b..b2b88d6 100644
+--- a/dlls/ntdll/file.c
++++ b/dlls/ntdll/file.c
+@@ -218,6 +218,10 @@ int get_file_info( const char *path, struct stat *st, ULONG *attr )
+         if (S_ISDIR( st->st_mode )) *attr |= FILE_ATTRIBUTE_REPARSE_POINT;
+     }
+     *attr |= get_file_attributes( st );
++    /* convert Unix-style hidden files to a DOS hidden file attribute */
++    if (DIR_is_hidden_file( path ))
++        *attr |= FILE_ATTRIBUTE_HIDDEN;
++    /* retrieve any stored DOS attributes */
+     len = xattr_get( path, SAMBA_XATTR_DOS_ATTRIB, hexattr, sizeof(hexattr)-1 );
+     if (len == -1) return ret;
+     *attr |= get_file_xattr( hexattr, len );
+@@ -3023,8 +3027,6 @@ NTSTATUS WINAPI NtQueryFullAttributesFile( const OBJECT_ATTRIBUTES *attr,
+             info->AllocationSize = std.AllocationSize;
+             info->EndOfFile      = std.EndOfFile;
+             info->FileAttributes = basic.FileAttributes;
+-            if (DIR_is_hidden_file( attr->ObjectName ))
+-                info->FileAttributes |= FILE_ATTRIBUTE_HIDDEN;
+         }
+         RtlFreeAnsiString( &unix_name );
+     }
+@@ -3052,11 +3054,7 @@ NTSTATUS WINAPI NtQueryAttributesFile( const OBJECT_ATTRIBUTES *attr, FILE_BASIC
+         else if (!S_ISREG(st.st_mode) && !S_ISDIR(st.st_mode))
+             status = STATUS_INVALID_INFO_CLASS;
+         else
+-        {
+             status = fill_file_info( &st, attributes, info, FileBasicInformation );
+-            if (DIR_is_hidden_file( attr->ObjectName ))
+-                info->FileAttributes |= FILE_ATTRIBUTE_HIDDEN;
+-        }
+         RtlFreeAnsiString( &unix_name );
+     }
+     else WARN("%s not found (%x)\n", debugstr_us(attr->ObjectName), status );
+diff --git a/dlls/ntdll/ntdll_misc.h b/dlls/ntdll/ntdll_misc.h
+index 01a7636..2a8c67b 100644
+--- a/dlls/ntdll/ntdll_misc.h
++++ b/dlls/ntdll/ntdll_misc.h
+@@ -160,7 +160,7 @@ extern NTSTATUS fill_file_info( const struct stat *st, ULONG attr, void *ptr,
+                                 FILE_INFORMATION_CLASS class ) DECLSPEC_HIDDEN;
+ extern NTSTATUS server_get_unix_name( HANDLE handle, ANSI_STRING *unix_name ) DECLSPEC_HIDDEN;
+ extern void init_directories(void) DECLSPEC_HIDDEN;
+-extern BOOL DIR_is_hidden_file( const UNICODE_STRING *name ) DECLSPEC_HIDDEN;
++extern BOOL DIR_is_hidden_file( const char *name ) DECLSPEC_HIDDEN;
+ extern NTSTATUS DIR_unmount_device( HANDLE handle ) DECLSPEC_HIDDEN;
+ extern NTSTATUS DIR_get_unix_cwd( char **cwd ) DECLSPEC_HIDDEN;
+ extern unsigned int DIR_get_drives_info( struct drive_info info[MAX_DOS_DRIVES] ) DECLSPEC_HIDDEN;
+-- 
+1.9.1
+

@@ -1,0 +1,1 @@
+Fixes: [25834] Implement advapi32.CreateRestrictedToken

@@ -1,0 +1,80 @@
+{
+  "app-id": "net.lutris.Lutris",
+  "runtime": "org.gnome.Platform//3.28",
+  "sdk": "org.gnome.Sdk//3.28",
+  "command": "lutris",
+  "rename-desktop-file": "lutris.desktop",
+  "rename-appdata-file": "lutris.appdata.xml",
+  "rename-icon": "lutris",
+  "finish-args": [
+    "--share=ipc",
+    "--share=network",
+    "--device=all",
+    "--allow=multiarch",
+    "--extension=org.gnome.Platform.Compat.i386=directory=lib/i386-linux-gnu",
+    "--extension=org.gnome.Platform.Compat.i386=version=18.08",
+    "--extension=org.gnome.Platform.GL32=directory=lib/i386-linux-gnu/GL",
+    "--extension=org.gnome.Platform.GL32=version=1.4",
+    "--extension=org.gnome.Platform.GL32=versions=1.6;1.4",
+    "--extension=org.gnome.Platform.GL32=subdirectories=true",
+    "--extension=org.gnome.Platform.GL32=no-autodownload=true",
+    "--extension=org.gnome.Platform.GL32=autodelete=false",
+    "--extension=org.gnome.Platform.GL32=add-ld-path=lib",
+    "--extension=org.gnome.Platform.GL32=merge-dirs=vulkan/icd.d;glvnd/egl_vendor.d",
+    "--extension=org.gnome.Platform.GL32=download-if=active-gl-driver",
+    "--extension=org.gnome.Platform.GL32=enable-if=active-gl-driver",
+    "--socket=x11",
+    "--socket=wayland",
+    "--socket=pulseaudio",
+    "--device=dri",
+    "--filesystem=host"
+  ],
+  "modules": [
+    {
+      "name": "xrandr",
+      "sources": [{
+        "type": "archive",
+        "url": "https://xorg.freedesktop.org/archive/individual/app/xrandr-1.5.0.tar.bz2",
+        "sha256": "c1cfd4e1d4d708c031d60801e527abc9b6d34b85f2ffa2cadd21f75ff38151cd"
+      }]
+    },
+    {
+      "name": "py-yaml",
+      "buildsystem": "simple",
+      "build-commands": [
+        "python3 ./setup.py install --prefix=/app"
+      ],
+      "sources": [{
+        "type": "archive",
+        "url": "https://pypi.python.org/packages/4a/85/db5a2df477072b2902b0eb892feb37d88ac635d36245a72a6a69b23b383a/PyYAML-3.12.tar.gz",
+        "sha256": "592766c6303207a20efc445587778322d7f73b161bd994f227adaa341ba212ab"
+      }]
+    },
+    {
+      "name": "python-evdev",
+      "buildsystem": "simple",
+      "build-commands": [
+        "python3 ./setup.py install --prefix=/app",
+        "rm /app/lib/python3.5/site-packages/easy-install.pth"
+      ],
+      "sources": [{
+        "type": "archive",
+        "url": "https://pypi.python.org/packages/67/15/eac376f3e1fc1960a54439c21459b2582e68340001aff83b4ace9e5bd110/evdev-0.7.0.tar.gz",
+        "sha256": "57edafc469a414f58b51af1bfb9ee2babb9f626dd2df530d71c1176871850aa1"
+      }]
+    },
+    {
+      "name": "lutris",
+      "buildsystem": "simple",
+      "build-commands": [
+        "sed -i \"s|('share'|('/app/share/'|\" setup.py",
+        "sed -i 's|/usr|/app|g' lutris/util/datapath.py",
+        "pip3 install --prefix=/app --no-deps ."
+      ],
+      "sources": [{
+        "type": "git",
+        "url": "https://github.com/lutris/lutris.git"
+      }]
+    }
+  ]
+}

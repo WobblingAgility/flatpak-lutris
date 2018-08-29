@@ -1,0 +1,36 @@
+[Application]
+name=net.lutris.Lutris
+runtime=org.gnome.Platform/x86_64/3.28
+sdk=org.gnome.Sdk/x86_64/3.28
+command=lutris
+
+[Context]
+shared=network;ipc;
+sockets=x11;wayland;pulseaudio;
+devices=dri;
+features=multiarch;
+filesystems=host;
+
+[Extension org.gnome.Platform.Compat.i386]
+directory=lib/i386-linux-gnu
+version=18.08
+
+[Extension org.gnome.Platform.GL32]
+directory=lib/i386-linux-gnu/GL
+version=1.4
+versions=1.6;1.4
+subdirectories=true
+no-autodownload=true
+autodelete=false
+add-ld-path=lib
+merge-dirs=vulkan/icd.d;glvnd/egl_vendor.d
+download-if=active-gl-driver
+enable-if=active-gl-driver
+
+[Extension net.lutris.Lutris.Debug]
+directory=lib/debug
+autodelete=true
+no-autodownload=true
+
+[Build]
+built-extensions=net.lutris.Lutris.Debug;

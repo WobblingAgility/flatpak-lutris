@@ -1,0 +1,93 @@
+From d14f1523f3694d7bc2c7c79b6b7bd6f2a354bfb7 Mon Sep 17 00:00:00 2001
+From: Sebastian Lackner <sebastian@fds-team.de>
+Date: Sun, 28 Sep 2014 23:39:51 +0200
+Subject: ntdll: OutputDebugString should throw the exception a second time, if
+ a debugger is attached.
+
+---
+ dlls/kernel32/debugger.c     | 17 +++++++++++++++++
+ dlls/ntdll/tests/exception.c | 11 +++++------
+ 2 files changed, 22 insertions(+), 6 deletions(-)
+
+diff --git a/dlls/kernel32/debugger.c b/dlls/kernel32/debugger.c
+index a277f93..2fb9c73 100644
+--- a/dlls/kernel32/debugger.c
++++ b/dlls/kernel32/debugger.c
+@@ -277,6 +277,23 @@ void WINAPI OutputDebugStringA( LPCSTR str )
+     __ENDTRY
+     if (caught_by_dbg) return;
+ 
++    /* for some unknown reason Windows sends the exception a second time, if a
++     * debugger is attached, and the event wasn't handled in the first attempt */
++    if (NtCurrentTeb()->Peb->BeingDebugged)
++    {
++        __TRY
++        {
++            ULONG_PTR args[2];
++            args[0] = strlen(str) + 1;
++            args[1] = (ULONG_PTR)str;
++            RaiseException( DBG_PRINTEXCEPTION_C, 0, 2, args );
++        }
++        __EXCEPT(debug_exception_handler)
++        {
++        }
++        __ENDTRY
++    }
++
+     /* send string to a system-wide monitor */
+     if (!mutex_inited)
+     {
+diff --git a/dlls/ntdll/tests/exception.c b/dlls/ntdll/tests/exception.c
+index 7462024..151b67a 100644
+--- a/dlls/ntdll/tests/exception.c
++++ b/dlls/ntdll/tests/exception.c
+@@ -2063,7 +2063,7 @@ static LONG CALLBACK outputdebugstring_vectored_handler(EXCEPTION_POINTERS *Exce
+     return EXCEPTION_CONTINUE_SEARCH;
+ }
+ 
+-static void test_outputdebugstring(DWORD numexc, BOOL todo)
++static void test_outputdebugstring(DWORD numexc)
+ {
+     PVOID vectored_handler;
+ 
+@@ -2079,7 +2079,6 @@ static void test_outputdebugstring(DWORD numexc, BOOL todo)
+     outputdebugstring_exceptions = 0;
+     OutputDebugStringA("Hello World");
+ 
+-    todo_wine_if(todo)
+     ok(outputdebugstring_exceptions == numexc, "OutputDebugStringA generated %d exceptions, expected %d\n",
+        outputdebugstring_exceptions, numexc);
+ 
+@@ -2522,9 +2521,9 @@ START_TEST(exception)
+             run_rtlraiseexception_test(EXCEPTION_BREAKPOINT);
+             run_rtlraiseexception_test(EXCEPTION_INVALID_HANDLE);
+             test_stage = 3;
+-            test_outputdebugstring(0, FALSE);
++            test_outputdebugstring(0);
+             test_stage = 4;
+-            test_outputdebugstring(2, TRUE); /* is this a Windows bug? */
++            test_outputdebugstring(2);
+             test_stage = 5;
+             test_ripevent(0);
+             test_stage = 6;
+@@ -2553,7 +2552,7 @@ START_TEST(exception)
+     test_exceptions();
+     test_rtlraiseexception();
+     test_debug_registers();
+-    test_outputdebugstring(1, FALSE);
++    test_outputdebugstring(1);
+     test_ripevent(1);
+     test_debug_service(1);
+     test_breakpoint(1);
+@@ -2586,7 +2585,7 @@ START_TEST(exception)
+                                                                  "_setjmp" );
+ 
+     test_debug_registers();
+-    test_outputdebugstring(1, FALSE);
++    test_outputdebugstring(1);
+     test_ripevent(1);
+     test_debug_service(1);
+     test_breakpoint(1);
+-- 
+2.9.0
+

@@ -1,0 +1,55 @@
+From 9411b94da4291a8000a2bb95f9c2a5b739549d07 Mon Sep 17 00:00:00 2001
+From: Sebastian Lackner <sebastian@fds-team.de>
+Date: Fri, 21 Aug 2015 06:39:47 +0800
+Subject: ntdll: Do not allow to deallocate thread stack for current thread.
+
+---
+ dlls/ntdll/ntdll_misc.h |  1 +
+ dlls/ntdll/thread.c     |  6 ++++++
+ dlls/ntdll/virtual.c    | 12 ++++++++++++
+ 3 files changed, 19 insertions(+)
+
+diff --git a/dlls/ntdll/ntdll_misc.h b/dlls/ntdll/ntdll_misc.h
+index ba296d25c3c..faa258a27f4 100644
+--- a/dlls/ntdll/ntdll_misc.h
++++ b/dlls/ntdll/ntdll_misc.h
+@@ -224,6 +224,7 @@ struct ntdll_thread_data
+     int                wait_fd[2];    /* fd for sleeping server requests */
+     BOOL               wow64_redir;   /* Wow64 filesystem redirection flag */
+     pthread_t          pthread_id;    /* pthread thread id */
++    void              *pthread_stack; /* pthread stack */
+ };
+ 
+ C_ASSERT( sizeof(struct ntdll_thread_data) <= sizeof(((TEB *)0)->GdiTebBatch) );
+diff --git a/dlls/ntdll/virtual.c b/dlls/ntdll/virtual.c
+index 4aeb282adf7..68c0148fbb5 100644
+--- a/dlls/ntdll/virtual.c
++++ b/dlls/ntdll/virtual.c
+@@ -1553,6 +1553,8 @@ NTSTATUS virtual_alloc_thread_stack( TEB *teb, SIZE_T reserve_size, SIZE_T commi
+     teb->DeallocationStack = view->base;
+     teb->Tib.StackBase     = (char *)view->base + view->size;
+     teb->Tib.StackLimit    = (char *)view->base + 2 * page_size;
++    ((struct ntdll_thread_data *)&teb->GdiTebBatch)->pthread_stack = view->base;
++
+ done:
+     server_leave_uninterrupted_section( &csVirtual, &sigset );
+     return status;
+@@ -2149,6 +2151,16 @@ NTSTATUS WINAPI NtFreeVirtualMemory( HANDLE process, PVOID *addr_ptr, SIZE_T *si
+         /* Free the pages */
+ 
+         if (size || (base != view->base)) status = STATUS_INVALID_PARAMETER;
++        else if (view->base == (void *)((ULONG_PTR)ntdll_get_thread_data()->pthread_stack & ~1))
++        {
++            ULONG_PTR stack = (ULONG_PTR)ntdll_get_thread_data()->pthread_stack;
++            if (stack & 1) status = STATUS_INVALID_PARAMETER;
++            else
++            {
++                WARN( "Application tried to deallocate current pthread stack %p, deferring\n", view->base);
++                ntdll_get_thread_data()->pthread_stack = (void *)(stack | 1);
++            }
++        }
+         else
+         {
+             delete_view( view );
+-- 
+2.13.1

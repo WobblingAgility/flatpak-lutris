@@ -1,0 +1,1 @@
+Fixes: [37594] Initial implementation of advapi32.BuildSecurityDescriptorW

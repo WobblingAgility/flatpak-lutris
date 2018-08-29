@@ -1,0 +1,164 @@
+From cdfc54a6363804cc8ee9146c3adbd51e431bcbf2 Mon Sep 17 00:00:00 2001
+From: Sebastian Lackner <sebastian@fds-team.de>
+Date: Sun, 5 Apr 2015 19:13:18 +0200
+Subject: dsound: Allow disabling of EAX support in the registry.
+
+Based on a patch by Mark Harmstone.
+---
+ dlls/dsound/buffer.c         | 16 ++++++----------
+ dlls/dsound/dsound_main.c    |  9 ++++++++-
+ dlls/dsound/dsound_private.h |  2 ++
+ dlls/dsound/eax.c            | 28 ++++++++++++++++++++++++++++
+ 4 files changed, 44 insertions(+), 11 deletions(-)
+
+diff --git a/dlls/dsound/buffer.c b/dlls/dsound/buffer.c
+index b763514..ca93972 100644
+--- a/dlls/dsound/buffer.c
++++ b/dlls/dsound/buffer.c
+@@ -35,6 +35,7 @@
+ #include "dsconf.h"
+ 
+ WINE_DEFAULT_DEBUG_CHANNEL(dsound);
++WINE_DECLARE_DEBUG_CHANNEL(winediag);
+ 
+ /*******************************************************************************
+  *		IDirectSoundNotify
+@@ -1329,16 +1330,11 @@ static HRESULT WINAPI IKsPropertySetImpl_QuerySupport(IKsPropertySet *iface, REF
+ 
+     TRACE("(%p,%s,%d,%p)\n",This,debugstr_guid(guidPropSet),dwPropID,pTypeSupport);
+ 
+-    if (IsEqualGUID(&DSPROPSETID_EAX_ReverbProperties, guidPropSet)) {
+-        if (dwPropID <= DSPROPERTY_EAX_DAMPING) {
+-            *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
+-            return S_OK;
+-        }
+-    } else if (IsEqualGUID(&DSPROPSETID_EAXBUFFER_ReverbProperties, guidPropSet)) {
+-        if (dwPropID <= DSPROPERTY_EAXBUFFER_REVERBMIX) {
+-            *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
+-            return S_OK;
+-        }
++    if (EAX_QuerySupport(guidPropSet, dwPropID, pTypeSupport)) {
++        static int once;
++        if (!once++)
++            FIXME_(winediag)("EAX sound effects are enabled - try to disable it if your app crashes unexpectedly\n");
++        return S_OK;
+     }
+ 
+     return E_PROP_ID_UNSUPPORTED;
+diff --git a/dlls/dsound/dsound_main.c b/dlls/dsound/dsound_main.c
+index b349eb4..db2ca50 100644
+--- a/dlls/dsound/dsound_main.c
++++ b/dlls/dsound/dsound_main.c
+@@ -94,8 +94,12 @@ WCHAR wine_vxd_drv[] = { 'w','i','n','e','m','m','.','v','x','d', 0 };
+ /* All default settings, you most likely don't want to touch these, see wiki on UsefulRegistryKeys */
+ int ds_hel_buflen = 32768 * 2;
+ int ds_hq_buffers_max = 4;
++BOOL ds_eax_enabled = FALSE;
+ static HINSTANCE instance;
+ 
++#define IS_OPTION_TRUE(ch) \
++    ((ch) == 'y' || (ch) == 'Y' || (ch) == 't' || (ch) == 'T' || (ch) == '1')
++
+ /*
+  * Get a config key from either the app-specific or the default config
+  */
+@@ -108,7 +112,6 @@ static inline DWORD get_config_key( HKEY defkey, HKEY appkey, const char *name,
+     return ERROR_FILE_NOT_FOUND;
+ }
+ 
+-
+ /*
+  * Setup the dsound options.
+  */
+@@ -149,11 +152,15 @@ void setup_dsound_options(void)
+     if (!get_config_key( hkey, appkey, "HQBuffersMax", buffer, MAX_PATH ))
+         ds_hq_buffers_max = atoi(buffer);
+ 
++    if (!get_config_key( hkey, appkey, "EAXEnabled", buffer, MAX_PATH ))
++        ds_eax_enabled = IS_OPTION_TRUE( buffer[0] );
++
+     if (appkey) RegCloseKey( appkey );
+     if (hkey) RegCloseKey( hkey );
+ 
+     TRACE("ds_hel_buflen = %d\n", ds_hel_buflen);
+     TRACE("ds_hq_buffers_max = %d\n", ds_hq_buffers_max);
++    TRACE("ds_eax_enabled = %u\n", ds_eax_enabled);
+ }
+ 
+ static const char * get_device_id(LPCGUID pGuid)
+diff --git a/dlls/dsound/dsound_private.h b/dlls/dsound/dsound_private.h
+index 5a986ba..4e928a4 100644
+--- a/dlls/dsound/dsound_private.h
++++ b/dlls/dsound/dsound_private.h
+@@ -37,6 +37,7 @@
+ 
+ extern int ds_hel_buflen DECLSPEC_HIDDEN;
+ extern int ds_hq_buffers_max DECLSPEC_HIDDEN;
++extern BOOL ds_eax_enabled DECLSPEC_HIDDEN;
+ 
+ /*****************************************************************************
+  * Predeclare the interface implementation structures
+@@ -230,6 +231,7 @@ LONG capped_refcount_dec(LONG *ref) DECLSPEC_HIDDEN;
+ HRESULT DSOUND_FullDuplexCreate(REFIID riid, void **ppv) DECLSPEC_HIDDEN;
+ 
+ /* eax.c */
++BOOL WINAPI EAX_QuerySupport(REFGUID guidPropSet, ULONG dwPropID, ULONG *pTypeSupport) DECLSPEC_HIDDEN;
+ HRESULT WINAPI EAX_Get(IDirectSoundBufferImpl *buf, REFGUID guidPropSet,
+         ULONG dwPropID, void *pInstanceData, ULONG cbInstanceData, void *pPropData,
+         ULONG cbPropData, ULONG *pcbReturned) DECLSPEC_HIDDEN;
+diff --git a/dlls/dsound/eax.c b/dlls/dsound/eax.c
+index e10156e..857f924 100644
+--- a/dlls/dsound/eax.c
++++ b/dlls/dsound/eax.c
+@@ -809,6 +809,28 @@ void free_eax_buffer(IDirectSoundBufferImpl *dsb)
+         HeapFree(GetProcessHeap(), 0, dsb->eax.SampleBuffer);
+ }
+ 
++BOOL WINAPI EAX_QuerySupport(REFGUID guidPropSet, ULONG dwPropID, ULONG *pTypeSupport)
++{
++    TRACE("(%s,%d,%p)\n", debugstr_guid(guidPropSet), dwPropID, pTypeSupport);
++
++    if (!ds_eax_enabled)
++        return FALSE;
++
++    if (IsEqualGUID(&DSPROPSETID_EAX_ReverbProperties, guidPropSet)) {
++        if (dwPropID <= DSPROPERTY_EAX_DAMPING) {
++            *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
++            return TRUE;
++        }
++    } else if (IsEqualGUID(&DSPROPSETID_EAXBUFFER_ReverbProperties, guidPropSet)) {
++        if (dwPropID <= DSPROPERTY_EAXBUFFER_REVERBMIX) {
++            *pTypeSupport = KSPROPERTY_SUPPORT_GET | KSPROPERTY_SUPPORT_SET;
++            return TRUE;
++        }
++    }
++
++    return FALSE;
++}
++
+ HRESULT WINAPI EAX_Get(IDirectSoundBufferImpl *buf, REFGUID guidPropSet,
+         ULONG dwPropID, void *pInstanceData, ULONG cbInstanceData, void *pPropData,
+         ULONG cbPropData, ULONG *pcbReturned)
+@@ -816,6 +838,9 @@ HRESULT WINAPI EAX_Get(IDirectSoundBufferImpl *buf, REFGUID guidPropSet,
+     TRACE("(buf=%p,guidPropSet=%s,dwPropID=%d,pInstanceData=%p,cbInstanceData=%d,pPropData=%p,cbPropData=%d,pcbReturned=%p)\n",
+         buf, debugstr_guid(guidPropSet), dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData, pcbReturned);
+ 
++    if (!ds_eax_enabled)
++        return E_PROP_ID_UNSUPPORTED;
++
+     *pcbReturned = 0;
+ 
+     if (IsEqualGUID(&DSPROPSETID_EAX_ReverbProperties, guidPropSet)) {
+@@ -922,6 +947,9 @@ HRESULT WINAPI EAX_Set(IDirectSoundBufferImpl *buf, REFGUID guidPropSet,
+     TRACE("(%p,%s,%d,%p,%d,%p,%d)\n",
+         buf, debugstr_guid(guidPropSet), dwPropID, pInstanceData, cbInstanceData, pPropData, cbPropData);
+ 
++    if (!ds_eax_enabled)
++        return E_PROP_ID_UNSUPPORTED;
++
+     if (IsEqualGUID(&DSPROPSETID_EAX_ReverbProperties, guidPropSet)) {
+         buf->device->eax.using_eax = TRUE;
+ 
+-- 
+2.8.0
+

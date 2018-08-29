@@ -1,0 +1,37 @@
+From 3dd0480317fe0ed3951daf1cf5757204d11a1ae5 Mon Sep 17 00:00:00 2001
+From: Sebastian Lackner <sebastian@fds-team.de>
+Date: Tue, 22 Mar 2016 21:55:12 +0100
+Subject: [PATCH] d3d9: Avoid implicit cast of interface pointer.
+
+---
+ dlls/d3d9/texture.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/dlls/d3d9/texture.c b/dlls/d3d9/texture.c
+index d3662f8..ebc3413 100644
+--- a/dlls/d3d9/texture.c
++++ b/dlls/d3d9/texture.c
+@@ -25,17 +25,17 @@ WINE_DEFAULT_DEBUG_CHANNEL(d3d9);
+ 
+ static inline struct d3d9_texture *impl_from_IDirect3DTexture9(IDirect3DTexture9 *iface)
+ {
+-    return CONTAINING_RECORD(iface, struct d3d9_texture, IDirect3DBaseTexture9_iface);
++    return CONTAINING_RECORD((IDirect3DBaseTexture9 *)iface, struct d3d9_texture, IDirect3DBaseTexture9_iface);
+ }
+ 
+ static inline struct d3d9_texture *impl_from_IDirect3DCubeTexture9(IDirect3DCubeTexture9 *iface)
+ {
+-    return CONTAINING_RECORD(iface, struct d3d9_texture, IDirect3DBaseTexture9_iface);
++    return CONTAINING_RECORD((IDirect3DBaseTexture9 *)iface, struct d3d9_texture, IDirect3DBaseTexture9_iface);
+ }
+ 
+ static inline struct d3d9_texture *impl_from_IDirect3DVolumeTexture9(IDirect3DVolumeTexture9 *iface)
+ {
+-    return CONTAINING_RECORD(iface, struct d3d9_texture, IDirect3DBaseTexture9_iface);
++    return CONTAINING_RECORD((IDirect3DBaseTexture9 *)iface, struct d3d9_texture, IDirect3DBaseTexture9_iface);
+ }
+ 
+ static void STDMETHODCALLTYPE srv_wined3d_object_destroyed(void *parent)
+-- 
+1.9.1
+

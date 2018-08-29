@@ -1,0 +1,69 @@
+From 44d20d13197dfd845a2fb6f7f40bac51e089e5ef Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Michael=20M=C3=BCller?= <michael@fds-team.de>
+Date: Tue, 6 Jun 2017 21:08:51 +0200
+Subject: ntoskrnl.exe: Implement NtBuildNumber.
+
+---
+ dlls/ntoskrnl.exe/ntoskrnl.c        | 11 +++++++++--
+ dlls/ntoskrnl.exe/ntoskrnl.exe.spec |  2 +-
+ 2 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/dlls/ntoskrnl.exe/ntoskrnl.c b/dlls/ntoskrnl.exe/ntoskrnl.c
+index a263941..3059dfb 100644
+--- a/dlls/ntoskrnl.exe/ntoskrnl.c
++++ b/dlls/ntoskrnl.exe/ntoskrnl.c
+@@ -52,6 +52,7 @@ WINE_DECLARE_DEBUG_CHANNEL(plugplay);
+ 
+ BOOLEAN KdDebuggerEnabled = FALSE;
+ ULONG InitSafeBootMode = 0;
++USHORT NtBuildNumber = 0;
+ 
+ extern LONG CALLBACK vectored_handler( EXCEPTION_POINTERS *ptrs );
+ 
+@@ -2655,6 +2656,13 @@ NTSTATUS WINAPI IoAcquireRemoveLockEx(PIO_REMOVE_LOCK lock, PVOID tag,
+     return STATUS_NOT_IMPLEMENTED;
+ }
+ 
++static void ntoskrnl_init(void)
++{
++    LARGE_INTEGER count;
++
++    KeQueryTickCount( &count );  /* initialize the global KeTickCount */
++    NtBuildNumber = NtCurrentTeb()->Peb->OSBuildNumber;
++}
+ 
+ /*****************************************************
+  *           DllMain
+@@ -2662,7 +2670,6 @@ NTSTATUS WINAPI IoAcquireRemoveLockEx(PIO_REMOVE_LOCK lock, PVOID tag,
+ BOOL WINAPI DllMain( HINSTANCE inst, DWORD reason, LPVOID reserved )
+ {
+     static void *handler;
+-    LARGE_INTEGER count;
+ 
+     switch(reason)
+     {
+@@ -2671,7 +2678,7 @@ BOOL WINAPI DllMain( HINSTANCE inst, DWORD reason, LPVOID reserved )
+ #if defined(__i386__) || defined(__x86_64__)
+         handler = RtlAddVectoredExceptionHandler( TRUE, vectored_handler );
+ #endif
+-        KeQueryTickCount( &count );  /* initialize the global KeTickCount */
++        ntoskrnl_init();
+         break;
+     case DLL_PROCESS_DETACH:
+         if (reserved) break;
+diff --git a/dlls/ntoskrnl.exe/ntoskrnl.exe.spec b/dlls/ntoskrnl.exe/ntoskrnl.exe.spec
+index 134cf71..34b1f52 100644
+--- a/dlls/ntoskrnl.exe/ntoskrnl.exe.spec
++++ b/dlls/ntoskrnl.exe/ntoskrnl.exe.spec
+@@ -742,7 +742,7 @@
+ @ stdcall NtAllocateLocallyUniqueId(ptr)
+ @ stdcall NtAllocateUuids(ptr ptr ptr ptr)
+ @ stdcall NtAllocateVirtualMemory(long ptr long ptr long long)
+-@ stub NtBuildNumber
++@ extern NtBuildNumber
+ @ stdcall NtClose(long)
+ @ stdcall NtConnectPort(ptr ptr ptr ptr ptr ptr ptr ptr)
+ @ stdcall NtCreateEvent(ptr long ptr long long)
+-- 
+2.7.4
+
